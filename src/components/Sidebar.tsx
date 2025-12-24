@@ -29,12 +29,14 @@ export default function Sidebar({
   return (
     <>
       {/* 移动端菜单按钮 */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="fixed top-4 left-4 z-40 md:hidden bg-blue-600 text-white p-2 rounded-lg"
-      >
-        {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-      </button>
+      {!isOpen && (
+        <button
+          onClick={() => setIsOpen(true)}
+          className="fixed top-4 left-4 z-40 md:hidden bg-blue-600 text-white p-2 rounded-lg"
+        >
+          <Menu className="w-6 h-6" />
+        </button>
+      )}
 
       {/* 侧边栏背景遮罩（移动端） */}
       {isOpen && (
@@ -51,9 +53,15 @@ export default function Sidebar({
         }`}
       >
         {/* 标题 */}
-        <div className="p-6 border-b border-blue-500">
+        <div className="p-6 border-b border-blue-500 relative">
           <h1 className="text-2xl font-bold">乐清市白石中学资源分享</h1>
           <p className="text-blue-100 text-sm mt-1">初中教学资源库</p>
+          <button
+            onClick={() => setIsOpen(false)}
+            className="absolute top-4 right-4 md:hidden bg-blue-600 text-white p-2 rounded-lg"
+          >
+            <X className="w-6 h-6" />
+          </button>
         </div>
 
         {/* 搜索框 */}
