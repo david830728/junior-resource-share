@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
-import { getUploadDir, getResourcesDbPath, generateFileName, getFileType, readResources, saveResources } from '@/lib/storage';
+import { getUploadDir, generateFileName, getFileType } from '@/lib/storage';
+import { pool } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,26 +39,47 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     fs.writeFileSync(filePath, Buffer.from(bytes));
 
-    // 创建资源记录
-    const resourceId = uuidv4();
-    const resource = {
-      id: resourceId,
-      title,
-      subject,
-      grade,
-      description,
-      fileName,
-      fileType: getFileType(file.name),
-      fileSize: file.size,
-      uploader,
-      uploadedAt: new Date().toISOString(),
-      downloadCount: 0,
-    };
+    // 转换日期时间格式为MySQL可接受的格式：YYYY-MM-DD HH:MM:SS
+    const mysqlDateTime = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
-    // 保存到数据库
-    const resources = readResources();
-    resources.push(resource);
-    saveResources(resources);
+    // 保存到MySQL数据库
+    const [result] = await pool.query(
+      `INSERT INTO resources (
+        title, description, subject, grade, uploader, 
+        file_name, file_type, file_size, download_count, uploaded_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        title,
+        description || '',
+        subject,
+        grade,
+        uploader,
+        fileName,
+        getFileType(file.name),
+        file.size,
+        0,
+        mysqlDateTime
+      ]
+    );
+
+    // 查询新创建的资源记录
+    const [rows] = await pool.query(
+      `SELECT 
+        id,
+        title,
+        subject,
+        grade,
+        uploader,
+        file_name AS fileName,
+        file_type AS fileType,
+        file_size AS fileSize,
+        download_count AS downloadCount,
+        uploaded_at AS uploadedAt
+      FROM resources WHERE id = ?`,
+      [(result as any).insertId]
+    );
+
+    const resource = (rows as any[])[0];
 
     return NextResponse.json(
       { success: true, data: resource, message: '上传成功' },

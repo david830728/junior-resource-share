@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
-import { getUploadDir, readResources, saveResources } from '@/lib/storage';
+import { getUploadDir } from '@/lib/storage';
+import { pool } from '@/lib/db';
 
 export async function GET(
   request: NextRequest,
@@ -9,8 +10,19 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const resources = readResources();
-    const resource = resources.find((r: any) => r.id === id);
+    
+    // 查询资源信息
+    const [rows] = await pool.query(
+      `SELECT 
+        id,
+        title,
+        file_name AS fileName,
+        file_type AS fileType
+      FROM resources WHERE id = ?`,
+      [id]
+    );
+
+    const resource = (rows as any[])[0];
 
     if (!resource) {
       return NextResponse.json(
@@ -31,8 +43,10 @@ export async function GET(
     }
 
     // 更新下载计数
-    resource.downloadCount = (resource.downloadCount || 0) + 1;
-    saveResources(resources);
+    await pool.query(
+      'UPDATE resources SET download_count = download_count + 1 WHERE id = ?',
+      [id]
+    );
 
     // 读取文件
     const fileBuffer = fs.readFileSync(filePath);

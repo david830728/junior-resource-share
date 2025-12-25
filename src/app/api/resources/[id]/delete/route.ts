@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
-import { getUploadDir, readResources, saveResources } from '@/lib/storage';
+import { getUploadDir } from '@/lib/storage';
+import { pool } from '@/lib/db';
 
 export async function DELETE(
   request: NextRequest,
@@ -9,21 +10,27 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const resources = readResources();
-    const resourceIndex = resources.findIndex((r: any) => r.id === id);
-
-    if (resourceIndex === -1) {
+    
+    // 从数据库中查询资源
+    const [resourceRows] = await pool.query(
+      'SELECT file_name FROM resources WHERE id = ?',
+      [id]
+    );
+    
+    const resources = resourceRows as any[];
+    if (resources.length === 0) {
       return NextResponse.json(
         { success: false, message: '资源不存在' },
         { status: 404 }
       );
     }
 
-    const resource = resources[resourceIndex];
+    const resource = resources[0];
+    const fileName = resource.file_name;
 
     // 删除文件
     const uploadDir = getUploadDir();
-    const filePath = path.join(uploadDir, resource.fileName);
+    const filePath = path.join(uploadDir, fileName);
     
     if (fs.existsSync(filePath)) {
       try {
@@ -35,8 +42,7 @@ export async function DELETE(
     }
 
     // 从数据库中删除记录
-    resources.splice(resourceIndex, 1);
-    saveResources(resources);
+    await pool.query('DELETE FROM resources WHERE id = ?', [id]);
 
     return NextResponse.json(
       { success: true, message: '删除成功' },

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readResources } from '@/lib/storage';
+import { pool } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   try {
@@ -7,20 +7,41 @@ export async function GET(request: NextRequest) {
     const subject = searchParams.get('subject');
     const grade = searchParams.get('grade');
 
-    let resources = readResources();
+    let query = `
+      SELECT 
+        id,
+        title,
+        subject,
+        grade,
+        uploader,
+        file_name AS fileName,
+        file_type AS fileType,
+        file_size AS fileSize,
+        download_count AS downloadCount,
+        uploaded_at AS uploadedAt
+      FROM resources
+    `;
+    const params: any[] = [];
 
     // 按学科和学段筛选
-    if (subject) {
-      resources = resources.filter((r: any) => r.subject === subject);
-    }
-    if (grade) {
-      resources = resources.filter((r: any) => r.grade === grade);
+    if (subject || grade) {
+      query += ' WHERE';
+      if (subject) {
+        query += ' subject = ?';
+        params.push(subject);
+        if (grade) query += ' AND';
+      }
+      if (grade) {
+        query += ' grade = ?';
+        params.push(grade);
+      }
     }
 
     // 按上传时间倒序排列
-    resources.sort((a: any, b: any) => 
-      new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
-    );
+    query += ' ORDER BY uploaded_at DESC';
+
+    const [rows] = await pool.query(query, params);
+    const resources = rows as any[];
 
     return NextResponse.json(
       { success: true, data: resources },

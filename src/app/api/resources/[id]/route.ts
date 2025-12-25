@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readResources } from '@/lib/storage';
+import { pool } from '@/lib/db';
 
 export async function GET(
   request: NextRequest,
@@ -7,8 +7,24 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const resources = readResources();
-    const resource = resources.find((r: any) => r.id === id);
+    const [rows] = await pool.query(
+      `SELECT 
+        id,
+        title,
+        description,
+        subject,
+        grade,
+        uploader,
+        file_name AS fileName,
+        file_type AS fileType,
+        file_size AS fileSize,
+        download_count AS downloadCount,
+        uploaded_at AS uploadedAt
+      FROM resources WHERE id = ?`,
+      [id]
+    );
+
+    const resource = (rows as any[])[0];
 
     if (!resource) {
       return NextResponse.json(

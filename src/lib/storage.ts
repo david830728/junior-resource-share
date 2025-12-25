@@ -61,20 +61,51 @@ export function getFileType(fileName: string): string {
   const ext = path.extname(fileName).toLowerCase();
   
   const typeMap: { [key: string]: string } = {
+    // PDF
     '.pdf': 'pdf',
+    
+    // PowerPoint
     '.ppt': 'ppt',
     '.pptx': 'ppt',
+    '.pptm': 'ppt',
+    '.pps': 'ppt',
+    '.ppsx': 'ppt',
+    
+    // Word
     '.doc': 'word',
     '.docx': 'word',
+    '.docm': 'word',
+    '.dot': 'word',
+    '.dotx': 'word',
+    
+    // Excel
+    '.xls': 'excel',
+    '.xlsx': 'excel',
+    '.xlsm': 'excel',
+    '.xlt': 'excel',
+    '.xltx': 'excel',
+    '.csv': 'excel',
+    
+    // Video
     '.mp4': 'video',
     '.avi': 'video',
     '.mov': 'video',
     '.webm': 'video',
+    '.flv': 'video',
+    '.wmv': 'video',
+    '.mkv': 'video',
+    '.3gp': 'video',
+    
+    // Image
     '.jpg': 'image',
     '.jpeg': 'image',
     '.png': 'image',
     '.gif': 'image',
     '.webp': 'image',
+    '.bmp': 'image',
+    '.svg': 'image',
+    '.tiff': 'image',
+    '.tif': 'image',
   };
   
   return typeMap[ext] || 'other';

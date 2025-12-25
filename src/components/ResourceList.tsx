@@ -3,9 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Resource } from '@/types';
-import { Download, FileText, Play, Image as ImageIcon, Eye, Trash2, ChevronRight } from 'lucide-react';
+import { Download, FileText, Play, Image as ImageIcon, Trash2, ChevronRight } from 'lucide-react';
 import axios from 'axios';
-import PreviewModal from './PreviewModal';
 import DeleteConfirmModal from './DeleteConfirmModal';
 
 interface ResourceListProps {
@@ -18,7 +17,6 @@ export default function ResourceList({ selectedSubject, selectedGrade, searchKey
   const [resources, setResources] = useState<Resource[]>([]);
   const [filteredResources, setFilteredResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(true);
-  const [previewResource, setPreviewResource] = useState<Resource | null>(null);
   const [deleteResource, setDeleteResource] = useState<Resource | null>(null);
 
   // 获取资源列表
@@ -117,7 +115,7 @@ export default function ResourceList({ selectedSubject, selectedGrade, searchKey
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="p-8">
+      <div className="p-8 pl-20 md:pl-8 pt-16 md:pt-8">
         {/* 标题 */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">资源列表</h1>
@@ -153,36 +151,31 @@ export default function ResourceList({ selectedSubject, selectedGrade, searchKey
                       <h3 className="font-semibold text-gray-800 truncate">
                         {resource.title}
                       </h3>
-                      <div className="flex gap-3 mt-1 text-xs text-gray-500">
-                        <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
-                          {resource.subject}
-                        </span>
-                        <span className="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded">
-                          {resource.grade}
-                        </span>
-                        <span>{formatFileSize(resource.fileSize)}</span>
-                        <span>{resource.downloadCount} 下载</span>
+                      <div className="flex items-center gap-3 mt-1">
+                        <div className="flex-shrink-0">
+                          <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs">
+                            {resource.subject}
+                          </span>
+                          <span className="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded text-xs ml-2">
+                            {resource.grade}
+                          </span>
+                        </div>
+                        
+                        {/* 中间位置：文件大小和下载量（上下排列） */}
+                        <div className="flex-1 flex flex-col text-xs text-gray-500 ml-4">
+                          <span className="truncate">{formatFileSize(resource.fileSize)}</span>
+                          <span className="truncate">{resource.downloadCount} 下载</span>
+                        </div>
                       </div>
                     </div>
                   </div>
 
                   {/* 右侧：按钮 */}
-                  <div className="flex-shrink-0 px-6 py-4 flex gap-2">
-                    {/* 预览按钮 */}
-                    {['image', 'pdf', 'video'].includes(resource.fileType) && (
-                      <button
-                        onClick={() => setPreviewResource(resource)}
-                        className="px-3 py-2 bg-indigo-500 hover:bg-indigo-600 text-white font-semibold rounded-lg flex items-center gap-1 transition text-sm"
-                      >
-                        <Eye className="w-4 h-4" />
-                        预览
-                      </button>
-                    )}
-
+                  <div className="flex-shrink-0 px-4 py-4 flex gap-2 whitespace-nowrap">
                     {/* 查看详情按钮 */}
                     <Link
                       href={`/resource/${resource.id}`}
-                      className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg flex items-center gap-1 transition text-sm"
+                      className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg flex items-center gap-1 transition text-sm whitespace-nowrap"
                     >
                       <ChevronRight className="w-4 h-4" />
                       查看
@@ -191,7 +184,7 @@ export default function ResourceList({ selectedSubject, selectedGrade, searchKey
                     {/* 删除按钮 */}
                     <button
                       onClick={() => setDeleteResource(resource)}
-                      className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg flex items-center gap-1 transition text-sm"
+                      className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg flex items-center gap-1 transition text-sm whitespace-nowrap"
                     >
                       <Trash2 className="w-4 h-4" />
                       删除
@@ -203,9 +196,6 @@ export default function ResourceList({ selectedSubject, selectedGrade, searchKey
           )}
         </div>
       </div>
-
-      {/* 预览模态框 */}
-      <PreviewModal resource={previewResource} onClose={() => setPreviewResource(null)} />
 
       {/* 删除确认对话框 */}
       <DeleteConfirmModal

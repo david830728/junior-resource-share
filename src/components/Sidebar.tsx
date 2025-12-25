@@ -24,31 +24,29 @@ export default function Sidebar({
   onGradeChange,
   onSearchChange,
 }: SidebarProps) {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
     <>
       {/* 移动端菜单按钮 */}
-      {!isOpen && (
-        <button
-          onClick={() => setIsOpen(true)}
-          className="fixed top-4 left-4 z-40 md:hidden bg-blue-600 text-white p-2 rounded-lg"
-        >
-          <Menu className="w-6 h-6" />
-        </button>
-      )}
+      <button
+        onClick={() => setIsOpen(true)}
+        className="fixed top-2 left-2 z-30 md:hidden bg-blue-600 text-white px-3 py-2 rounded-lg"
+      >
+        <Menu className="w-4 h-4" />
+      </button>
 
       {/* 侧边栏背景遮罩（移动端） */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden"
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
           onClick={() => setIsOpen(false)}
         />
       )}
 
       {/* 侧边栏 */}
       <aside
-        className={`fixed left-0 top-0 h-screen w-64 bg-gradient-to-b from-blue-600 to-blue-800 text-white shadow-lg overflow-y-auto transition-transform duration-300 z-30 md:relative md:translate-x-0 ${
+        className={`fixed left-0 top-0 h-screen w-64 bg-gradient-to-b from-blue-600 to-blue-800 text-white shadow-lg overflow-y-auto transition-transform duration-300 z-50 md:relative md:translate-x-0 md:static md:block ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >

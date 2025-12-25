@@ -5,7 +5,7 @@ export type Subject = '语文' | '数学' | '英语' | '科学' | '历史' | '�
 export type Grade = '七上' | '七下' | '八上' | '八下' | '九上' | '九下';
 
 // 文件类型
-export type FileType = 'pdf' | 'ppt' | 'word' | 'video' | 'image' | 'other';
+export type FileType = 'pdf' | 'ppt' | 'word' | 'excel' | 'video' | 'image' | 'other';
 
 // 评论接口
 export interface Comment {

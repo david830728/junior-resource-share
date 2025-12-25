@@ -1,34 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
-
-function getCommentsDbPath(): string {
-  const dataDir = path.join(process.cwd(), 'data');
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-  }
-  return path.join(dataDir, 'comments.json');
-}
-
-function readComments() {
-  const dbPath = getCommentsDbPath();
-  if (!fs.existsSync(dbPath)) {
-    return [];
-  }
-  try {
-    const data = fs.readFileSync(dbPath, 'utf-8');
-    return JSON.parse(data);
-  } catch (error) {
-    console.error('Error reading comments:', error);
-    return [];
-  }
-}
-
-function saveComments(comments: any[]) {
-  const dbPath = getCommentsDbPath();
-  fs.writeFileSync(dbPath, JSON.stringify(comments, null, 2));
-}
+import { pool } from '@/lib/db';
 
 // 获取资源的评论
 export async function GET(request: NextRequest) {
@@ -43,15 +14,22 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const comments = readComments();
-    const resourceComments = comments
-      .filter((c: any) => c.resourceId === resourceId)
-      .sort((a: any, b: any) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
+    const [rows] = await pool.query(
+      `SELECT 
+        id,
+        resource_id AS resourceId,
+        author,
+        content,
+        rating,
+        created_at AS createdAt
+      FROM comments WHERE resource_id = ? ORDER BY created_at DESC`,
+      [resourceId]
+    );
+
+    const comments = rows as any[];
 
     return NextResponse.json(
-      { success: true, data: resourceComments },
+      { success: true, data: comments },
       { status: 200 }
     );
   } catch (error) {
@@ -83,18 +61,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 转换日期时间格式为MySQL可接受的格式：YYYY-MM-DD HH:MM:SS
+    const mysqlDateTime = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    
     const comment = {
-      id: uuidv4(),
       resourceId,
       author,
       content,
       rating,
-      createdAt: new Date().toISOString(),
+      createdAt: mysqlDateTime,
     };
 
-    const comments = readComments();
-    comments.push(comment);
-    saveComments(comments);
+    await pool.query(
+      'INSERT INTO comments (resource_id, author, content, rating, created_at) VALUES (?, ?, ?, ?, ?)',
+      [comment.resourceId, comment.author, comment.content, comment.rating, comment.createdAt]
+    );
 
     return NextResponse.json(
       { success: true, data: comment, message: '评论成功' },

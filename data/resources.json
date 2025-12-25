@@ -76,5 +76,57 @@
     "uploader": "me",
     "uploadedAt": "2025-12-07T14:53:37.826Z",
     "downloadCount": 0
+  },
+  {
+    "id": "a37915c3-f8e1-4363-9d46-dc0f8bed1db0",
+    "title": "七上科学第一章",
+    "subject": "科学",
+    "grade": "七上",
+    "description": "",
+    "fileName": "1766648681155-qbm4l5hyhjg.xlsx",
+    "fileType": "other",
+    "fileSize": 15661,
+    "uploader": "张超颖",
+    "uploadedAt": "2025-12-25T07:44:41.156Z",
+    "downloadCount": 0
+  },
+  {
+    "id": "7b5a4ee5-a97d-4427-bfd6-694c9d465e01",
+    "title": "八上科学复习",
+    "subject": "科学",
+    "grade": "八上",
+    "description": "",
+    "fileName": "1766654494329-v5flqm7xx2b.xlsx",
+    "fileType": "other",
+    "fileSize": 3915,
+    "uploader": "张超颖",
+    "uploadedAt": "2025-12-25T09:21:34.330Z",
+    "downloadCount": 0
+  },
+  {
+    "id": "accdbcef-e451-4be7-9c05-122ce63a60ec",
+    "title": "八上科学第一章",
+    "subject": "科学",
+    "grade": "八上",
+    "description": "八上科学第一章",
+    "fileName": "1766654573255-6mlct6ri9w.pdf",
+    "fileType": "pdf",
+    "fileSize": 162459,
+    "uploader": "张超颖",
+    "uploadedAt": "2025-12-25T09:22:53.256Z",
+    "downloadCount": 0
+  },
+  {
+    "id": "8b013d95-a63a-47f9-ab87-78ef8971366c",
+    "title": "七上数学第二章",
+    "subject": "数学",
+    "grade": "七上",
+    "description": "",
+    "fileName": "1766654717892-jomfc0eo0y.txt",
+    "fileType": "other",
+    "fileSize": 750184,
+    "uploader": "张超颖",
+    "uploadedAt": "2025-12-25T09:25:17.893Z",
+    "downloadCount": 0
   }
 ]
