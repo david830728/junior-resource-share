@@ -51,11 +51,16 @@ export async function GET(
     // 读取文件
     const fileBuffer = fs.readFileSync(filePath);
 
+    // 获取文件扩展名
+    const fileExtension = path.extname(resource.fileName);
+    // 创建带扩展名的文件名
+    const downloadFileName = `${resource.title}${fileExtension}`;
+
     // 返回文件
     return new NextResponse(fileBuffer, {
       headers: {
         'Content-Type': 'application/octet-stream',
-        'Content-Disposition': `attachment; filename="${encodeURIComponent(resource.title)}"`,
+        'Content-Disposition': `attachment; filename="${encodeURIComponent(downloadFileName)}"`,
       },
     });
   } catch (error) {
