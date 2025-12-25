@@ -68,7 +68,26 @@ export default function ResourceDetailActions({
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', resource.title);
+      
+      // 从响应头中获取Content-Disposition，提取文件名（包含扩展名）
+      const contentDisposition = response.headers['content-disposition'];
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+        if (filenameMatch && filenameMatch[1]) {
+          link.setAttribute('download', decodeURIComponent(filenameMatch[1]));
+        } else {
+          // 回退方案：使用标题+原始文件名的扩展名
+          const fileExtension = resource.fileName ? resource.fileName.split('.').pop() : '';
+          const downloadFileName = fileExtension ? `${resource.title}.${fileExtension}` : resource.title;
+          link.setAttribute('download', downloadFileName);
+        }
+      } else {
+        // 回退方案：使用标题+原始文件名的扩展名
+        const fileExtension = resource.fileName ? resource.fileName.split('.').pop() : '';
+        const downloadFileName = fileExtension ? `${resource.title}.${fileExtension}` : resource.title;
+        link.setAttribute('download', downloadFileName);
+      }
+      
       document.body.appendChild(link);
       link.click();
       link.parentNode?.removeChild(link);
