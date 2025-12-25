@@ -58,6 +58,7 @@ export function generateFileName(originalFileName: string): string {
 
 // 获取文件类型
 export function getFileType(fileName: string): string {
+  if (!fileName) return 'other';
   const ext = path.extname(fileName).toLowerCase();
   
   const typeMap: { [key: string]: string } = {

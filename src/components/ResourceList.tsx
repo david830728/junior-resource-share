@@ -54,10 +54,10 @@ export default function ResourceList({ selectedSubject, selectedGrade, searchKey
     if (searchKeyword.trim()) {
       const keyword = searchKeyword.toLowerCase();
       filtered = filtered.filter(r => 
-        r.title.toLowerCase().includes(keyword) ||
-        r.description.toLowerCase().includes(keyword) ||
-        r.subject.toLowerCase().includes(keyword) ||
-        r.grade.toLowerCase().includes(keyword)
+        (r.title?.toLowerCase() || '').includes(keyword) ||
+        (r.description?.toLowerCase() || '').includes(keyword) ||
+        (r.subject?.toLowerCase() || '').includes(keyword) ||
+        (r.grade?.toLowerCase() || '').includes(keyword)
       );
     }
 

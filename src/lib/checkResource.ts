@@ -1,4 +1,4 @@
-import { pool } from './db.ts';
+import { pool } from './db';
 import { exit } from 'process';
 
 async function checkResource() {
