@@ -10,6 +10,7 @@ export default function Home() {
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedGrade, setSelectedGrade] = useState('');
   const [searchKeyword, setSearchKeyword] = useState('');
+  const [uploaderFilter, setUploaderFilter] = useState('');
 
   const handleUploadSuccess = () => {
     // 刷新资源列表
@@ -23,9 +24,11 @@ export default function Home() {
         selectedSubject={selectedSubject}
         selectedGrade={selectedGrade}
         searchKeyword={searchKeyword}
+        uploaderFilter={uploaderFilter}
         onSubjectChange={setSelectedSubject}
         onGradeChange={setSelectedGrade}
         onSearchChange={setSearchKeyword}
+        onUploaderFilterChange={setUploaderFilter}
       />
 
       {/* 右侧资源列表 */}
@@ -35,6 +38,7 @@ export default function Home() {
           selectedSubject={selectedSubject} 
           selectedGrade={selectedGrade}
           searchKeyword={searchKeyword}
+          uploaderFilter={uploaderFilter}
         />
       </main>
 

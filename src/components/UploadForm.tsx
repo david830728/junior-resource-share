@@ -2,8 +2,10 @@
 
 import { useState } from 'react';
 import { Subject, Grade } from '@/types';
-import { Upload, X } from 'lucide-react';
+import { Upload, X, LogIn } from 'lucide-react';
 import axios from 'axios';
+import { useAuth } from '@/contexts/AuthContext';
+import Link from 'next/link';
 
 const SUBJECTS: Subject[] = ['语文', '数学', '英语', '科学', '历史', '地理', '道法'];
 const GRADES: Grade[] = ['七上', '七下', '八上', '八下', '九上', '九下'];
@@ -13,6 +15,7 @@ interface UploadFormProps {
 }
 
 export default function UploadForm({ onSuccess }: UploadFormProps) {
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -21,7 +24,6 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
     subject: '' as Subject | '',
     grade: '' as Grade | '',
     description: '',
-    uploader: '',
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -71,10 +73,6 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
       setError('请选择学段');
       return;
     }
-    if (!formData.uploader.trim()) {
-      setError('请输入上传者名称');
-      return;
-    }
 
     try {
       setLoading(true);
@@ -84,7 +82,6 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
       uploadFormData.append('subject', formData.subject);
       uploadFormData.append('grade', formData.grade);
       uploadFormData.append('description', formData.description);
-      uploadFormData.append('uploader', formData.uploader);
 
       const response = await axios.post('/api/resources/upload', uploadFormData, {
         headers: {
@@ -100,7 +97,6 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
           subject: '',
           grade: '',
           description: '',
-          uploader: '',
         });
         setTimeout(() => {
           setIsOpen(false);
@@ -114,6 +110,18 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
       setLoading(false);
     }
   };
+
+  if (!user || (user.role !== 'teacher' && user.role !== 'admin')) {
+    return (
+      <Link
+        href="/login"
+        className="fixed bottom-8 right-8 bg-gradient-to-r from-gray-400 to-gray-500 hover:from-gray-500 hover:to-gray-600 text-white rounded-full p-4 shadow-lg hover:shadow-xl transition flex items-center gap-2 font-semibold"
+      >
+        <LogIn className="w-6 h-6" />
+        登录后上传
+      </Link>
+    );
+  }
 
   return (
     <>
@@ -259,19 +267,9 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
                 />
               </div>
 
-              {/* 上传者 */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  上传者名称 *
-                </label>
-                <input
-                  type="text"
-                  name="uploader"
-                  value={formData.uploader}
-                  onChange={handleInputChange}
-                  placeholder="您的名字或昵称"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+              {/* 上传者（自动从账号获取） */}
+              <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-sm text-gray-600">
+                上传者：<span className="font-semibold text-gray-800">{user.displayName}</span>
               </div>
 
               {/* 按钮 */}

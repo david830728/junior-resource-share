@@ -11,23 +11,34 @@ interface ResourceListProps {
   selectedSubject: string;
   selectedGrade: string;
   searchKeyword: string;
+  uploaderFilter: string;
 }
 
-export default function ResourceList({ selectedSubject, selectedGrade, searchKeyword }: ResourceListProps) {
+export default function ResourceList({ selectedSubject, selectedGrade, searchKeyword, uploaderFilter }: ResourceListProps) {
   const [resources, setResources] = useState<Resource[]>([]);
   const [filteredResources, setFilteredResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteResource, setDeleteResource] = useState<Resource | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ id: number; role: string } | null>(null);
+
+  // 获取当前用户
+  useEffect(() => {
+    axios.get('/api/auth/me').then(res => {
+      if (res.data.success) setCurrentUser(res.data.user);
+    }).catch(() => {});
+  }, []);
 
   // 获取资源列表
   useEffect(() => {
     fetchResources();
-  }, []);
+  }, [uploaderFilter]);
 
   const fetchResources = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/resources');
+      const params = new URLSearchParams();
+      if (uploaderFilter) params.set('uploader', uploaderFilter);
+      const response = await axios.get(`/api/resources${params.toString() ? '?' + params.toString() : ''}`);
       if (response.data.success) {
         setResources(response.data.data);
         setFilteredResources(response.data.data);
@@ -161,10 +172,10 @@ export default function ResourceList({ selectedSubject, selectedGrade, searchKey
                           </span>
                         </div>
                         
-                        {/* 中间位置：文件大小和下载量（上下排列） */}
+                        {/* 中间位置：文件大小、下载量、上传者 */}
                         <div className="flex-1 flex flex-col text-xs text-gray-500 ml-4">
-                          <span className="truncate">{formatFileSize(resource.fileSize)}</span>
-                          <span className="truncate">{resource.downloadCount} 下载</span>
+                          <span className="truncate">{formatFileSize(resource.fileSize)} · {resource.downloadCount} 下载</span>
+                          <span className="truncate text-gray-400">{resource.uploader}</span>
                         </div>
                       </div>
                     </div>
@@ -181,14 +192,19 @@ export default function ResourceList({ selectedSubject, selectedGrade, searchKey
                       查看
                     </Link>
 
-                    {/* 删除按钮 */}
-                    <button
-                      onClick={() => setDeleteResource(resource)}
-                      className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg flex items-center gap-1 transition text-sm whitespace-nowrap"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      删除
-                    </button>
+                    {/* 删除按钮：仅资源上传者或管理员可见 */}
+                    {currentUser && (
+                      currentUser.role === 'admin' ||
+                      (resource as any).userId === currentUser.id
+                    ) && (
+                      <button
+                        onClick={() => setDeleteResource(resource)}
+                        className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg flex items-center gap-1 transition text-sm whitespace-nowrap"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        删除
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

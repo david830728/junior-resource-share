@@ -3,17 +3,23 @@ import fs from 'fs';
 import path from 'path';
 import { getUploadDir } from '@/lib/storage';
 import { pool } from '@/lib/db';
+import { getTokenFromRequest } from '@/lib/auth';
 
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const currentUser = getTokenFromRequest(request);
+    if (!currentUser || (currentUser.role !== 'teacher' && currentUser.role !== 'admin')) {
+      return NextResponse.json({ success: false, message: '请先登录' }, { status: 401 });
+    }
+
     const { id } = await params;
     
     // 从数据库中查询资源
     const [resourceRows] = await pool.query(
-      'SELECT file_name FROM resources WHERE id = ?',
+      'SELECT file_name, user_id FROM resources WHERE id = ?',
       [id]
     );
     
@@ -27,6 +33,11 @@ export async function DELETE(
 
     const resource = resources[0];
     const fileName = resource.file_name;
+
+    // 权限检查：教师只能删除自己的资源
+    if (currentUser.role !== 'admin' && resource.user_id !== currentUser.id) {
+      return NextResponse.json({ success: false, message: '无权限删除此资源' }, { status: 403 });
+    }
 
     // 删除文件
     const uploadDir = getUploadDir();

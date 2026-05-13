@@ -6,6 +6,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const subject = searchParams.get('subject');
     const grade = searchParams.get('grade');
+    const uploader = searchParams.get('uploader');
 
     let query = `
       SELECT 
@@ -14,6 +15,7 @@ export async function GET(request: NextRequest) {
         subject,
         grade,
         uploader,
+        user_id AS userId,
         file_name AS fileName,
         file_type AS fileType,
         file_size AS fileSize,
@@ -22,19 +24,14 @@ export async function GET(request: NextRequest) {
       FROM resources
     `;
     const params: any[] = [];
+    const conditions: string[] = [];
 
-    // 按学科和学段筛选
-    if (subject || grade) {
-      query += ' WHERE';
-      if (subject) {
-        query += ' subject = ?';
-        params.push(subject);
-        if (grade) query += ' AND';
-      }
-      if (grade) {
-        query += ' grade = ?';
-        params.push(grade);
-      }
+    if (subject) { conditions.push('subject = ?'); params.push(subject); }
+    if (grade) { conditions.push('grade = ?'); params.push(grade); }
+    if (uploader) { conditions.push('uploader LIKE ?'); params.push(`%${uploader}%`); }
+
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
     }
 
     // 按上传时间倒序排列

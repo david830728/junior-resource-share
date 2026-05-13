@@ -3,16 +3,22 @@ import fs from 'fs';
 import path from 'path';
 import { getUploadDir, generateFileName, getFileType } from '@/lib/storage';
 import { pool } from '@/lib/db';
+import { getTokenFromRequest } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
+    const currentUser = getTokenFromRequest(request);
+    if (!currentUser || (currentUser.role !== 'teacher' && currentUser.role !== 'admin')) {
+      return NextResponse.json({ success: false, message: '请先登录' }, { status: 401 });
+    }
+
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const title = formData.get('title') as string;
     const subject = formData.get('subject') as string;
     const grade = formData.get('grade') as string;
     const description = formData.get('description') as string;
-    const uploader = formData.get('uploader') as string;
+    const uploader = currentUser.displayName;
 
     // 验证必填字段
     if (!file || !title || !subject || !grade || !uploader) {
@@ -45,15 +51,17 @@ export async function POST(request: NextRequest) {
     // 保存到MySQL数据库
     const [result] = await pool.query(
       `INSERT INTO resources (
-        title, description, subject, grade, uploader, 
+        title, description, subject, grade, uploader, user_id,
         file_name, file_type, file_size, download_count, uploaded_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+
       [
         title,
         description || '',
         subject,
         grade,
         uploader,
+        currentUser.id,
         fileName,
         getFileType(file.name),
         file.size,

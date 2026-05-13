@@ -1,8 +1,11 @@
 'use client';
 
 import { Subject, Grade } from '@/types';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, LogIn, LogOut, ShieldCheck, User } from 'lucide-react';
 import { useState } from 'react';
+import Link from 'next/link';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 
 const SUBJECTS: Subject[] = ['语文', '数学', '英语', '科学', '历史', '地理', '道法'];
 const GRADES: Grade[] = ['七上', '七下', '八上', '八下', '九上', '九下'];
@@ -11,20 +14,31 @@ interface SidebarProps {
   selectedSubject: string;
   selectedGrade: string;
   searchKeyword: string;
+  uploaderFilter: string;
   onSubjectChange: (subject: string) => void;
   onGradeChange: (grade: string) => void;
   onSearchChange: (keyword: string) => void;
+  onUploaderFilterChange: (uploader: string) => void;
 }
 
 export default function Sidebar({
   selectedSubject,
   selectedGrade,
   searchKeyword,
+  uploaderFilter,
   onSubjectChange,
   onGradeChange,
   onSearchChange,
+  onUploaderFilterChange,
 }: SidebarProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const { user, logout } = useAuth();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await logout();
+    router.push('/login');
+  };
 
   return (
     <>
@@ -52,7 +66,7 @@ export default function Sidebar({
       >
         {/* 标题 */}
         <div className="p-6 border-b border-blue-500 relative">
-          <h1 className="text-2xl font-bold">乐清市白石中学资源分享</h1>
+          <h1 className="text-xl font-bold">乐清市白石中学资源分享</h1>
           <p className="text-blue-100 text-sm mt-1">初中教学资源库</p>
           <button
             onClick={() => setIsOpen(false)}
@@ -62,14 +76,62 @@ export default function Sidebar({
           </button>
         </div>
 
+        {/* 用户区域 */}
+        <div className="p-4 border-b border-blue-500">
+          {user ? (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm">
+                <User className="w-4 h-4 text-blue-200" />
+                <span className="text-white font-semibold truncate">{user.displayName}</span>
+                <span className="text-blue-300 text-xs">
+                  {user.role === 'admin' ? '管理员' : '教师'}
+                </span>
+              </div>
+              <div className="flex gap-2">
+                {user.role === 'admin' && (
+                  <Link
+                    href="/admin"
+                    className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-purple-500 hover:bg-purple-600 text-white text-xs font-semibold rounded-lg transition"
+                  >
+                    <ShieldCheck className="w-3 h-3" />
+                    管理面板
+                  </Link>
+                )}
+                <button
+                  onClick={handleLogout}
+                  className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-blue-500 hover:bg-blue-400 text-white text-xs font-semibold rounded-lg transition"
+                >
+                  <LogOut className="w-3 h-3" />
+                  退出
+                </button>
+              </div>
+            </div>
+          ) : (
+            <Link
+              href="/login"
+              className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-yellow-400 hover:bg-yellow-300 text-blue-900 font-semibold rounded-lg transition text-sm"
+            >
+              <LogIn className="w-4 h-4" />
+              登录 / 申请账号
+            </Link>
+          )}
+        </div>
+
         {/* 搜索框 */}
-        <div className="p-6 border-b border-blue-500">
+        <div className="p-4 border-b border-blue-500 space-y-2">
           <input
             type="text"
-            placeholder="搜索资源..."
+            placeholder="搜索标题、描述..."
             value={searchKeyword}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full px-4 py-2 rounded-lg text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-300"
+            className="w-full px-3 py-2 rounded-lg text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-300 text-sm"
+          />
+          <input
+            type="text"
+            placeholder="按上传者搜索..."
+            value={uploaderFilter}
+            onChange={(e) => onUploaderFilterChange(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-300 text-sm"
           />
         </div>
 

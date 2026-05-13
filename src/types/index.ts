@@ -12,9 +12,12 @@ export interface Comment {
   id: string;
   resourceId: string;
   author: string;
+  userId?: number;
+  parentId?: number | null;
   content: string;
   rating: number; // 1-5
   createdAt: string;
+  replies?: Comment[];
 }
 
 // 资源接口
@@ -28,6 +31,7 @@ export interface Resource {
   fileType: FileType;
   fileSize: number;
   uploader: string;
+  userId?: number;
   uploadedAt: string;
   downloadCount: number;
   averageRating?: number;
