@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
-import path from 'path';
+import path, { join } from 'path';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   // 解包 params Promise
@@ -9,7 +9,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ path
     // 获取请求的文件名（合并多级路径）
     const fileName = resolvedParams.path.join('/');
     // 解析文件路径
-    const filePath = path.join(process.cwd(), 'public', 'uploads', fileName);
+    const filePath = join(__dirname, '../../../../../public/uploads', fileName);
     
     // 验证文件是否存在
     if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
