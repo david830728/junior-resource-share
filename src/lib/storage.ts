@@ -1,16 +1,15 @@
 import fs from 'fs';
-import path, { join } from 'path';
+import path from 'path';
 
 // 获取上传文件的存储目录
 export function getUploadDir(): string {
-  // 使用相对于本文件的路径，避免 process.cwd() 在服务器上不准确
-  const uploadDir = join(__dirname, '../../../../public/uploads');
+  // 优先使用环境变量，解决服务器 process.cwd() 不准确的问题
+  const uploadDir = process.env.UPLOAD_DIR ||
+    path.join(process.cwd(), 'public', 'uploads');
   
-  // 确保目录存在
   if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
   }
-  
   return uploadDir;
 }
 
