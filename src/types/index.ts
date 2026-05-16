@@ -7,6 +7,9 @@ export type Grade = '七上' | '七下' | '八上' | '八下' | '九上' | '九�
 // 文件类型
 export type FileType = 'pdf' | 'ppt' | 'word' | 'excel' | 'video' | 'image' | 'other';
 
+// 难度类型
+export type Difficulty = '基础' | '提高' | '拓展';
+
 // 评论接口
 export interface Comment {
   id: string;
@@ -26,7 +29,7 @@ export interface Resource {
   title: string;
   subject: Subject;
   grade: Grade;
-  description: string;
+  description?: string;
   fileName: string;
   fileType: FileType;
   fileSize: number;
@@ -34,8 +37,44 @@ export interface Resource {
   userId?: number;
   uploadedAt: string;
   downloadCount: number;
+  chapterId?: number;
+  difficulty?: Difficulty;
+  pdfPath?: string;
   averageRating?: number;
   commentCount?: number;
+}
+
+// 章节接口
+export interface TextbookChapter {
+  id: number;
+  subject: string;
+  semester: string;
+  chapterNum: number | null;
+  chapterTitle: string | null;
+  sectionNum: number | null;
+  sectionTitle: string;
+  code: string | null;
+  sortOrder: number;
+  isSpecial: boolean;
+}
+
+// 收藏条目接口
+export interface CollectionItem {
+  collectionId: number;
+  resourceId: number;
+  customName: string | null;
+  sortOrder: number;
+  title: string;
+  subject: string;
+  grade: string;
+  fileSize: number;
+  uploader: string;
+  description?: string;
+  difficulty: Difficulty;
+  chapterId?: number;
+  pdfPath?: string;
+  fileName: string;
+  fileType: string;
 }
 
 // 上传请求体
@@ -44,7 +83,8 @@ export interface UploadRequest {
   subject: Subject;
   grade: Grade;
   description: string;
-  uploader: string;
+  chapterId?: number;
+  difficulty: Difficulty;
 }
 
 // API 响应

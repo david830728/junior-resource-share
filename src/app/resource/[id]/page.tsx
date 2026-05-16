@@ -1,260 +1,135 @@
-import { Resource, Comment } from '@/types';
+import { Comment } from '@/types';
 import { ArrowLeft } from 'lucide-react';
 import { pool } from '@/lib/db';
 import Link from 'next/link';
 import ResourceDetailActions from '@/components/ResourceDetailActions';
+import ResourceDetailInfo from '@/components/ResourceDetailInfo';
 
 export default async function ResourceDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  // 解包 params Promise
   const { id } = await params;
   const resourceId = id;
 
-  // 获取资源详情
   const fetchResourceDetail = async (id: string) => {
     try {
-      // 将ID转换为数字类型，确保与MySQL数据库中的ID字段类型匹配
-      const resourceId = parseInt(id, 10);
-      
-      if (isNaN(resourceId)) {
-        return null;
-      }
-      
+      const rid = parseInt(id, 10);
+      if (isNaN(rid)) return null;
       const [rows] = await pool.query(
-        `SELECT 
-          id,
-          title,
-          description,
-          subject,
-          grade,
-          uploader,
-          file_name AS fileName,
-          file_type AS fileType,
-          file_size AS fileSize,
-          download_count AS downloadCount,
-          uploaded_at AS uploadedAt
-        FROM resources WHERE id = ?`,
-        [resourceId]
+        `SELECT id, title, description, subject, grade, uploader, user_id AS userId,
+                file_name AS fileName, file_type AS fileType, file_size AS fileSize,
+                download_count AS downloadCount, uploaded_at AS uploadedAt,
+                chapter_id AS chapterId, difficulty, pdf_path AS pdfPath
+         FROM resources WHERE id = ?`,
+        [rid]
       );
-
-      const resource = (rows as any[])[0];
-      return resource;
-    } catch (error) {
-      console.error('Fetch resource error:', error);
-      return null;
-    }
+      return (rows as any[])[0] || null;
+    } catch { return null; }
   };
 
-  // 获取评论
   const fetchComments = async (id: string) => {
     try {
-      // 将ID转换为数字类型，确保与MySQL数据库中的ID字段类型匹配
-      const resourceId = parseInt(id, 10);
-      if (isNaN(resourceId)) {
-        return [];
+      const rid = parseInt(id, 10);
+      if (isNaN(rid)) return [];
+      const [topRows] = await pool.query(
+        `SELECT id, resource_id AS resourceId, author, user_id AS userId,
+                parent_id AS parentId, content, rating, created_at AS createdAt
+         FROM comments WHERE resource_id = ? AND (parent_id IS NULL OR parent_id = 0)
+         ORDER BY created_at DESC`,
+        [rid]
+      ) as any;
+      const [replyRows] = await pool.query(
+        `SELECT id, resource_id AS resourceId, author, user_id AS userId,
+                parent_id AS parentId, content, rating, created_at AS createdAt
+         FROM comments WHERE resource_id = ? AND parent_id IS NOT NULL AND parent_id != 0
+         ORDER BY created_at ASC`,
+        [rid]
+      ) as any;
+      const replyMap: Record<number, any[]> = {};
+      for (const r of replyRows) {
+        if (!replyMap[r.parentId]) replyMap[r.parentId] = [];
+        replyMap[r.parentId].push(r);
       }
-      
-      const [rows] = await pool.query(
-        `SELECT 
-          id,
-          resource_id AS resourceId,
-          author,
-          content,
-          rating,
-          created_at AS createdAt
-        FROM comments WHERE resource_id = ? ORDER BY created_at DESC`,
-        [resourceId]
-      );
-
-      return rows as Comment[];
-    } catch (error) {
-      console.error('Fetch comments error:', error);
-      return [];
-    }
+      return topRows.map((c: any) => ({ ...c, replies: replyMap[c.id] || [] }));
+    } catch { return []; }
   };
 
-  // 预获取数据
   const resource = await fetchResourceDetail(resourceId);
   const comments = await fetchComments(resourceId);
 
-  // 如果资源不存在，返回404
   if (!resource) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-[#F5F7FA] flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600 mb-4">资源不存在</p>
-          <Link
-            href="/"
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-          >
-            返回
-          </Link>
+          <Link href="/" className="px-4 py-2 bg-[#4F6EF7] text-white rounded-lg hover:bg-blue-700">返回</Link>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pt-2 md:pt-0">
-      {/* 头部导航 */}
-      <div className="bg-white shadow-md">
-        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-semibold"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            返回
+    <div className="min-h-screen bg-[#F5F7FA]">
+      {/* 顶部导航 */}
+      <div className="bg-white border-b border-gray-100 shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
+        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center gap-4">
+          <Link href="/" className="flex items-center gap-1.5 text-gray-500 hover:text-[#4F6EF7] font-medium text-sm transition">
+            <ArrowLeft className="w-4 h-4" />返回
           </Link>
-          <h1 className="text-2xl font-bold text-gray-800 flex-1 text-center">
-            资源详情
-          </h1>
-          <ResourceDetailActions 
-            resourceId={resourceId} 
-            resource={resource} 
-            comments={comments} 
-            variant="button-only"
-          />
+          <h1 className="text-base font-bold text-gray-800 truncate flex-1">{resource.title}</h1>
+          <ResourceDetailActions resourceId={resourceId} resource={resource} comments={[]} variant="button-only" />
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* 左侧：预览内容 */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-              {/* 预览区域 */}
-              <div className="bg-gray-100 min-h-96 flex items-center justify-center">
-                {['image', 'pdf', 'video', 'word', 'ppt', 'excel'].includes(resource.fileType) ? (
-                  <div className="w-full h-full">
-                    {resource.fileType === 'image' ? (
-                      <img
-                        src={`/uploads/${resource.fileName}`}
-                        alt={resource.title}
-                        className="w-full h-full object-contain"
-                      />
-                    ) : resource.fileType === 'pdf' ? (
-                      <iframe
-                        src={`/uploads/${resource.fileName}#toolbar=0`}
-                        className="w-full h-96"
-                        title={resource.title}
-                      />
-                    ) : resource.fileType === 'video' ? (
-                      <video
-                        controls
-                        className="w-full h-96 object-contain"
-                      >
-                        <source src={`/uploads/${resource.fileName}`} />
-                        你的浏览器不支持视频播放
-                      </video>
-                    ) : ['word', 'ppt', 'excel'].includes(resource.fileType) ? (
-                      <div className="w-full h-full flex flex-col items-center justify-center p-8">
-                        <div className="text-8xl mb-6">
-                          {resource.fileType === 'word' && '📝'}
-                          {resource.fileType === 'ppt' && '📊'}
-                          {resource.fileType === 'excel' && '📈'}
-                        </div>
-                        <h3 className="text-2xl font-bold text-gray-800 mb-2">
-                          {resource.title}
-                        </h3>
-                        <p className="text-gray-600 mb-6">
-                          {resource.fileType.toUpperCase()} 文件预览
-                        </p>
-                        <p className="text-gray-500 text-center mb-8">
-                          点击下方按钮在新窗口中预览或下载文件
-                        </p>
-                        <div className="flex gap-4">
-                      <a
-                        href={`/uploads/${resource.fileName}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-semibold"
-                      >
-                        在新窗口打开
-                      </a>
-                      <ResourceDetailActions 
-                        resourceId={resourceId} 
-                        resource={resource} 
-                        comments={comments} 
-                        variant="button-only"
-                      />
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : (
-                  <div className="text-center p-8">
-                    <div className="text-6xl mb-4">📄</div>
-                    <p className="text-gray-600 text-lg">
-                      暂不支持 {resource.fileType.toUpperCase()} 文件预览
-                    </p>
-                    <p className="text-gray-500 text-sm mt-2">
-                      请下载文件后在本地查看
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* 资源信息 */}
-              <div className="p-8">
-                <h2 className="text-3xl font-bold text-gray-800 mb-4">
-                  {resource.title}
-                </h2>
-                <div className="flex flex-wrap gap-3 mb-6">
-                  <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
-                    {resource.subject}
-                  </span>
-                  <span className="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm font-medium">
-                    {resource.grade}
-                  </span>
+      {/* 主体：左右分栏 */}
+      <div className="max-w-7xl mx-auto px-6 py-6 flex gap-6">
+        {/* 左侧 65% - 预览区 */}
+        <div className="flex-[65] min-w-0">
+          <div className="bg-white rounded-[8px] shadow-[0_1px_4px_rgba(0,0,0,0.08)] overflow-hidden" style={{ minHeight: '70vh' }}>
+            {resource.pdfPath ? (
+              <iframe
+                src={`/uploads/${resource.pdfPath}#toolbar=1`}
+                className="w-full"
+                style={{ height: '80vh' }}
+                title={resource.title}
+              />
+            ) : resource.fileType === 'pdf' ? (
+              <iframe
+                src={`/uploads/${resource.fileName}#toolbar=1`}
+                className="w-full"
+                style={{ height: '80vh' }}
+                title={resource.title}
+              />
+            ) : resource.fileType === 'image' ? (
+              <img src={`/uploads/${resource.fileName}`} alt={resource.title} className="w-full object-contain" style={{ maxHeight: '80vh' }} />
+            ) : resource.fileType === 'video' ? (
+              <video controls className="w-full" style={{ maxHeight: '80vh' }}>
+                <source src={`/uploads/${resource.fileName}`} />你的浏览器不支持视频播放
+              </video>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full p-16 text-center" style={{ minHeight: '60vh' }}>
+                <div className="text-7xl mb-6">
+                  {resource.fileType === 'word' ? '📝' : resource.fileType === 'ppt' ? '📊' : resource.fileType === 'excel' ? '📈' : '📄'}
                 </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="text-gray-600 text-sm">上传者</p>
-                    <p className="font-semibold text-gray-800">{resource.uploader}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-600 text-sm">文件大小</p>
-                    <p className="font-semibold text-gray-800">
-                      {(resource.fileSize / 1024 / 1024).toFixed(2)} MB
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-600 text-sm">下载次数</p>
-                    <p className="font-semibold text-gray-800">{resource.downloadCount}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-600 text-sm">上传时间</p>
-                    <p className="font-semibold text-gray-800">
-                      {new Date(resource.uploadedAt).toLocaleDateString('zh-CN')}
-                    </p>
-                  </div>
-                </div>
-
-                {resource.description && (
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                      资源描述
-                    </h3>
-                    <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                      {resource.description}
-                    </p>
-                  </div>
-                )}
+                <p className="text-gray-500 mb-4">暂不支持预览，请下载后查看</p>
+                <a href={`/uploads/${resource.fileName}`} target="_blank" rel="noopener noreferrer"
+                  className="px-5 py-2 bg-[#4F6EF7] text-white rounded-lg hover:bg-blue-700 text-sm font-semibold transition">
+                  在新窗口打开
+                </a>
               </div>
-            </div>
+            )}
           </div>
+        </div>
 
-          {/* 右侧：评分和评论 */}
-          <ResourceDetailActions 
-            resourceId={resourceId} 
-            resource={resource} 
-            comments={comments} 
-          />
+        {/* 右侧 35% - 信息 + 评论 */}
+        <div className="flex-[35] min-w-0 space-y-4">
+          {/* 资源信息 + 描述编辑 + 收藏 */}
+          <ResourceDetailInfo resource={resource} resourceId={resourceId} />
+
+          {/* 评论区 */}
+          <ResourceDetailActions resourceId={resourceId} resource={resource} comments={comments} />
         </div>
       </div>
     </div>

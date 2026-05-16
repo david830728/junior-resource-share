@@ -7,20 +7,15 @@ export async function GET(request: NextRequest) {
     const subject = searchParams.get('subject');
     const grade = searchParams.get('grade');
     const uploader = searchParams.get('uploader');
+    const chapterId = searchParams.get('chapterId');
+    const difficulty = searchParams.get('difficulty');
 
     let query = `
       SELECT 
-        id,
-        title,
-        subject,
-        grade,
-        uploader,
-        user_id AS userId,
-        file_name AS fileName,
-        file_type AS fileType,
-        file_size AS fileSize,
-        download_count AS downloadCount,
-        uploaded_at AS uploadedAt
+        id, title, description, subject, grade, uploader, user_id AS userId,
+        file_name AS fileName, file_type AS fileType, file_size AS fileSize,
+        download_count AS downloadCount, uploaded_at AS uploadedAt,
+        chapter_id AS chapterId, difficulty, pdf_path AS pdfPath
       FROM resources
     `;
     const params: any[] = [];
@@ -29,6 +24,8 @@ export async function GET(request: NextRequest) {
     if (subject) { conditions.push('subject = ?'); params.push(subject); }
     if (grade) { conditions.push('grade = ?'); params.push(grade); }
     if (uploader) { conditions.push('uploader LIKE ?'); params.push(`%${uploader}%`); }
+    if (chapterId) { conditions.push('chapter_id = ?'); params.push(Number(chapterId)); }
+    if (difficulty) { conditions.push('difficulty = ?'); params.push(difficulty); }
 
     if (conditions.length > 0) {
       query += ' WHERE ' + conditions.join(' AND ');

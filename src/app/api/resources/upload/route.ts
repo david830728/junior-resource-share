@@ -4,6 +4,7 @@ import path from 'path';
 import { getUploadDir, generateFileName, getFileType } from '@/lib/storage';
 import { pool } from '@/lib/db';
 import { getTokenFromRequest } from '@/lib/auth';
+import { convertDocxToPdf } from '@/lib/convertToPdf';
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,6 +19,8 @@ export async function POST(request: NextRequest) {
     const subject = formData.get('subject') as string;
     const grade = formData.get('grade') as string;
     const description = formData.get('description') as string;
+    const chapterId = formData.get('chapterId') ? Number(formData.get('chapterId')) : null;
+    const difficulty = (formData.get('difficulty') as string) || '基础';
     const uploader = currentUser.displayName;
 
     // 验证必填字段
@@ -45,6 +48,15 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     fs.writeFileSync(filePath, Buffer.from(bytes));
 
+    // 尝试 Word → PDF 转换（服务器有 LibreOffice 时生效，本地无则跳过）
+    let pdfRelPath: string | null = null;
+    try {
+      const pdfAbsPath = await convertDocxToPdf(filePath);
+      if (pdfAbsPath) {
+        pdfRelPath = path.basename(pdfAbsPath);
+      }
+    } catch { /* 转换失败不影响上传 */ }
+
     // 转换日期时间格式为MySQL可接受的格式：YYYY-MM-DD HH:MM:SS
     const mysqlDateTime = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
@@ -52,9 +64,9 @@ export async function POST(request: NextRequest) {
     const [result] = await pool.query(
       `INSERT INTO resources (
         title, description, subject, grade, uploader, user_id,
-        file_name, file_type, file_size, download_count, uploaded_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-
+        file_name, file_type, file_size, download_count, uploaded_at,
+        chapter_id, difficulty, pdf_path
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         title,
         description || '',
@@ -66,7 +78,10 @@ export async function POST(request: NextRequest) {
         getFileType(file.name),
         file.size,
         0,
-        mysqlDateTime
+        mysqlDateTime,
+        chapterId,
+        difficulty,
+        pdfRelPath,
       ]
     );
 

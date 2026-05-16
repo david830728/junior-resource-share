@@ -59,8 +59,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: '缺少必填字段' }, { status: 400 });
     }
 
-    // rating required only for top-level comments
-    const effectiveRating = parentId ? null : (rating ?? 5);
+    // rating required only for top-level comments; replies use 0 to satisfy NOT NULL
+    const effectiveRating = parentId ? 0 : (rating ?? 5);
     if (!parentId && (effectiveRating < 1 || effectiveRating > 5)) {
       return NextResponse.json({ success: false, message: '评分必须在 1-5 之间' }, { status: 400 });
     }

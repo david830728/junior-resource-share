@@ -1,47 +1,50 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { Resource } from '@/types';
-import { Download, FileText, Play, Image as ImageIcon, Trash2, ChevronRight } from 'lucide-react';
 import axios from 'axios';
 import DeleteConfirmModal from './DeleteConfirmModal';
+import ResourceCard from './ResourceCard';
 
 interface ResourceListProps {
   selectedSubject: string;
   selectedGrade: string;
   searchKeyword: string;
   uploaderFilter: string;
+  chapterId?: number;
+  difficulty?: string;
+  chapterLabel?: string;
 }
 
-export default function ResourceList({ selectedSubject, selectedGrade, searchKeyword, uploaderFilter }: ResourceListProps) {
+export default function ResourceList({
+  selectedSubject, selectedGrade, searchKeyword, uploaderFilter,
+  chapterId, difficulty, chapterLabel,
+}: ResourceListProps) {
   const [resources, setResources] = useState<Resource[]>([]);
   const [filteredResources, setFilteredResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteResource, setDeleteResource] = useState<Resource | null>(null);
   const [currentUser, setCurrentUser] = useState<{ id: number; role: string } | null>(null);
 
-  // 获取当前用户
   useEffect(() => {
     axios.get('/api/auth/me').then(res => {
       if (res.data.success) setCurrentUser(res.data.user);
     }).catch(() => {});
   }, []);
 
-  // 获取资源列表
-  useEffect(() => {
-    fetchResources();
-  }, [uploaderFilter]);
+  useEffect(() => { fetchResources(); }, [uploaderFilter, chapterId, difficulty]);
 
   const fetchResources = async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
       if (uploaderFilter) params.set('uploader', uploaderFilter);
-      const response = await axios.get(`/api/resources${params.toString() ? '?' + params.toString() : ''}`);
+      if (chapterId) params.set('chapterId', String(chapterId));
+      if (difficulty) params.set('difficulty', difficulty);
+      const q = params.toString();
+      const response = await axios.get(`/api/resources${q ? '?' + q : ''}`);
       if (response.data.success) {
         setResources(response.data.data);
-        setFilteredResources(response.data.data);
       }
     } catch (error) {
       console.error('获取资源失败:', error);
@@ -50,177 +53,47 @@ export default function ResourceList({ selectedSubject, selectedGrade, searchKey
     }
   };
 
-  // 筛选资源
   useEffect(() => {
     let filtered = resources;
-
-    if (selectedSubject) {
-      filtered = filtered.filter(r => r.subject === selectedSubject);
-    }
-    if (selectedGrade) {
-      filtered = filtered.filter(r => r.grade === selectedGrade);
-    }
-
-    // 搜索功能 - 匹配标题、描述、学科、学段
+    if (selectedSubject) filtered = filtered.filter(r => r.subject === selectedSubject);
+    if (selectedGrade) filtered = filtered.filter(r => r.grade === selectedGrade);
     if (searchKeyword.trim()) {
-      const keyword = searchKeyword.toLowerCase();
-      filtered = filtered.filter(r => 
-        (r.title?.toLowerCase() || '').includes(keyword) ||
-        (r.description?.toLowerCase() || '').includes(keyword) ||
-        (r.subject?.toLowerCase() || '').includes(keyword) ||
-        (r.grade?.toLowerCase() || '').includes(keyword)
+      const kw = searchKeyword.toLowerCase();
+      filtered = filtered.filter(r =>
+        (r.title?.toLowerCase() || '').includes(kw) ||
+        (r.description?.toLowerCase() || '').includes(kw) ||
+        (r.subject?.toLowerCase() || '').includes(kw) ||
+        (r.grade?.toLowerCase() || '').includes(kw)
       );
     }
-
     setFilteredResources(filtered);
   }, [selectedSubject, selectedGrade, searchKeyword, resources]);
 
-  // 获取文件图标
-  const getFileIcon = (fileType: string) => {
-    switch (fileType) {
-      case 'pdf':
-      case 'word':
-      case 'ppt':
-        return <FileText className="w-5 h-5 text-red-500" />;
-      case 'video':
-        return <Play className="w-5 h-5 text-blue-500" />;
-      case 'image':
-        return <ImageIcon className="w-5 h-5 text-green-500" />;
-      default:
-        return <FileText className="w-5 h-5 text-gray-500" />;
-    }
-  };
-
-  // 格式化文件大小
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-  };
-
-  // 格式化日期
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('zh-CN');
-  };
-
-  // 处理下载
-  const handleDownload = async (resourceId: string, title: string) => {
-    try {
-      const response = await axios.get(`/api/resources/${resourceId}/download`, {
-        responseType: 'blob',
-      });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', title);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode?.removeChild(link);
-    } catch (error) {
-      console.error('下载失败:', error);
-      alert('下载失败，请重试');
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="p-8 pl-20 md:pl-8 pt-16 md:pt-8">
-        {/* 标题 */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">资源列表</h1>
-          <p className="text-gray-600">共 {filteredResources.length} 个资源</p>
+    <div>
+      {loading ? (
+        <div className="text-center py-12 text-gray-400">加载中...</div>
+      ) : filteredResources.length === 0 ? (
+        <div className="text-center py-12 text-gray-400">暂无资源</div>
+      ) : (
+        <div className="space-y-2">
+          {filteredResources.map(resource => (
+            <ResourceCard
+              key={resource.id}
+              resource={resource}
+              chapterLabel={chapterLabel}
+              currentUserId={currentUser?.id}
+              currentUserRole={currentUser?.role}
+              onDelete={() => setDeleteResource(resource)}
+            />
+          ))}
         </div>
+      )}
 
-        {/* 资源列表 */}
-        <div>
-          {loading ? (
-            <div className="text-center py-12">
-              <p className="text-gray-600">加载中...</p>
-            </div>
-          ) : filteredResources.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-gray-600">暂无资源</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {filteredResources.map(resource => (
-                <div
-                  key={resource.id}
-                  className="bg-white rounded-lg shadow-md hover:shadow-lg transition flex items-center h-20"
-                >
-                  {/* 左侧：资源信息 */}
-                  <div className="flex-1 px-6 py-4 flex items-center gap-4">
-                    {/* 文件图标 */}
-                    <div className="flex-shrink-0">
-                      {getFileIcon(resource.fileType)}
-                    </div>
-
-                    {/* 标题和元数据 */}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-800 truncate">
-                        {resource.title}
-                      </h3>
-                      <div className="flex items-center gap-3 mt-1">
-                        <div className="flex-shrink-0">
-                          <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs">
-                            {resource.subject}
-                          </span>
-                          <span className="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded text-xs ml-2">
-                            {resource.grade}
-                          </span>
-                        </div>
-                        
-                        {/* 中间位置：文件大小、下载量、上传者 */}
-                        <div className="flex-1 flex flex-col text-xs text-gray-500 ml-4">
-                          <span className="truncate">{formatFileSize(resource.fileSize)} · {resource.downloadCount} 下载</span>
-                          <span className="truncate text-gray-400">{resource.uploader}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 右侧：按钮 */}
-                  <div className="flex-shrink-0 px-4 py-4 flex gap-2 whitespace-nowrap">
-                    {/* 查看详情按钮 */}
-                    <Link
-                      href={`/resource/${resource.id}`}
-                      className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg flex items-center gap-1 transition text-sm whitespace-nowrap"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                      查看
-                    </Link>
-
-                    {/* 删除按钮：仅资源上传者或管理员可见 */}
-                    {currentUser && (
-                      currentUser.role === 'admin' ||
-                      (resource as any).userId === currentUser.id
-                    ) && (
-                      <button
-                        onClick={() => setDeleteResource(resource)}
-                        className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg flex items-center gap-1 transition text-sm whitespace-nowrap"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        删除
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* 删除确认对话框 */}
       <DeleteConfirmModal
         resource={deleteResource}
         onClose={() => setDeleteResource(null)}
-        onSuccess={() => {
-          // 删除成功后刷新资源列表
-          fetchResources();
-        }}
+        onSuccess={fetchResources}
       />
     </div>
   );
