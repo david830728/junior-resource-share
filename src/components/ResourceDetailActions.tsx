@@ -47,9 +47,11 @@ export default function ResourceDetailActions({
       const link = document.createElement('a');
       link.href = url;
       const cd = response.headers['content-disposition'];
-      const match = cd?.match(/filename="?([^"]+)"?/);
+      const rfc5987 = cd?.match(/filename\*=UTF-8''([^\s;]+)/i);
+      const legacy = cd?.match(/filename="?([^";]+)"?/i);
       const ext = resource.fileName?.split('.').pop() || '';
-      link.setAttribute('download', match?.[1] ? decodeURIComponent(match[1]) : (ext ? `${resource.title}.${ext}` : resource.title));
+      const fallback = ext ? `${resource.title}.${ext}` : resource.title;
+      link.setAttribute('download', rfc5987 ? decodeURIComponent(rfc5987[1]) : legacy ? decodeURIComponent(legacy[1]) : fallback);
       document.body.appendChild(link);
       link.click();
       link.parentNode?.removeChild(link);

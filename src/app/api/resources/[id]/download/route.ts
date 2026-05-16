@@ -56,11 +56,11 @@ export async function GET(
     // 创建带扩展名的文件名
     const downloadFileName = `${resource.title}${fileExtension}`;
 
-    // 返回文件
+    // 返回文件（RFC 5987 编码，支持中文文件名）
     return new NextResponse(fileBuffer, {
       headers: {
         'Content-Type': 'application/octet-stream',
-        'Content-Disposition': `attachment; filename="${encodeURIComponent(downloadFileName)}"`,
+        'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(downloadFileName)}`,
       },
     });
   } catch (error) {
