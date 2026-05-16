@@ -40,7 +40,9 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
   // Chapter selection
   const [chapters, setChapters] = useState<TextbookChapter[]>([]);
   const [selectedSemester, setSelectedSemester] = useState('');
-  const [selectedChapterNum, setSelectedChapterNum] = useState<number | ''>('');
+  const [chapterSelectValue, setChapterSelectValue] = useState(''); // 'ch-{num}' | 'sp-{id}' | ''
+  const [selectedSectionId, setSelectedSectionId] = useState<number | null>(null);
+  const [selectedLessonNum, setSelectedLessonNum] = useState<number | ''>('');
   const [selectedChapterId, setSelectedChapterId] = useState<number | null>(null);
   const [autoDetected, setAutoDetected] = useState('');
 
@@ -62,8 +64,10 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
     return acc;
   }, {});
 
-  const sectionsForChapter = selectedChapterNum !== '' ? (chapterGroups[selectedChapterNum as number] || []) : [];
-  const allSections = [...(sectionsForChapter), ...chapters.filter(c => c.isSpecial)];
+  const specialItems = chapters.filter(c => c.isSpecial);
+  const isSpecialSelected = chapterSelectValue.startsWith('sp-');
+  const currentChapterNum = chapterSelectValue.startsWith('ch-') ? Number(chapterSelectValue.slice(3)) : null;
+  const sectionsForChapter = currentChapterNum !== null ? (chapterGroups[currentChapterNum] || []) : [];
 
   // Parse filename for chapter code e.g. "1.2" or "1.2.3"
   const parseChapterFromFilename = (name: string, allChapters: TextbookChapter[]) => {
@@ -71,8 +75,9 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
     if (!match) return null;
     const chNum = Number(match[1]);
     const secNum = Number(match[2]);
-    const found = allChapters.find(c => c.chapterNum === chNum && c.sectionNum === secNum);
-    return found || null;
+    const lessonNum = match[3] ? Number(match[3]) : null;
+    const section = allChapters.find(c => c.chapterNum === chNum && c.sectionNum === secNum);
+    return section ? { section, lessonNum } : null;
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -85,11 +90,16 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
 
     // Auto-detect chapter from filename if subject is 科学
     if (subject === '科学' && chapters.length > 0) {
-      const found = parseChapterFromFilename(f.name, chapters);
-      if (found) {
-        setSelectedChapterId(found.id);
-        setSelectedChapterNum(found.chapterNum || '');
-        setAutoDetected(`已自动识别章节：${found.semester} · 第${found.chapterNum}章 ${found.chapterTitle} · 第${found.sectionNum}节 ${found.sectionTitle}`);
+      const result = parseChapterFromFilename(f.name, chapters);
+      if (result) {
+        const { section, lessonNum } = result;
+        setChapterSelectValue(`ch-${section.chapterNum}`);
+        setSelectedSectionId(section.id);
+        setSelectedChapterId(section.id);
+        if (lessonNum) setSelectedLessonNum(lessonNum);
+        let msg = `已自动识别：${section.semester} · 第${section.chapterNum}章 ${section.chapterTitle} · 第${section.sectionNum}节 ${section.sectionTitle}`;
+        if (lessonNum) msg += ` · 第${lessonNum}课时`;
+        setAutoDetected(msg);
       }
     }
   };
@@ -101,6 +111,7 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
     if (!title.trim()) { setError('请输入资源标题'); return; }
     if (!subject) { setError('请选择学科'); return; }
     if (!grade) { setError('请选择学段'); return; }
+    if (subject === '科学' && !selectedChapterId) { setError('科学资源请选择章节位置'); return; }
 
     try {
       setLoading(true);
@@ -118,7 +129,7 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
         setSuccess('上传成功！');
         setFile(null); setTitle(''); setSubject(''); setGrade(''); setDescription('');
         setDifficulty('基础'); setSelectedChapterId(null); setSelectedSemester('');
-        setSelectedChapterNum(''); setAutoDetected('');
+        setChapterSelectValue(''); setSelectedSectionId(null); setSelectedLessonNum(''); setAutoDetected('');
         if (standalone) {
           setTimeout(() => { onSuccess?.(); router.push('/'); }, 1500);
         } else {
@@ -179,7 +190,7 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">学科 *</label>
-          <select value={subject} onChange={e => { setSubject(e.target.value as Subject); setSelectedChapterId(null); setSelectedSemester(''); setAutoDetected(''); }}
+          <select value={subject} onChange={e => { setSubject(e.target.value as Subject); setSelectedChapterId(null); setSelectedSemester(''); setChapterSelectValue(''); setSelectedSectionId(null); setSelectedLessonNum(''); setAutoDetected(''); }}
             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
             <option value="">选择学科</option>
             {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
@@ -195,33 +206,79 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
         </div>
       </div>
 
-      {/* 章节选择（科学学科） */}
-      {subject === '科学' && (
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">章节位置</label>
-          <div className="grid grid-cols-3 gap-2">
-            <select value={selectedSemester} onChange={e => { setSelectedSemester(e.target.value); setSelectedChapterNum(''); setSelectedChapterId(null); }}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+      {/* 章节位置（科学强制，其他学科待扩展） */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          章节位置
+          {subject === '科学' && <span className="text-red-500 ml-0.5">*</span>}
+          {subject && subject !== '科学' && <span className="text-xs text-gray-400 font-normal ml-1">（暂无该学科章节数据）</span>}
+        </label>
+
+        {/* 学期选择：仅科学 */}
+        {subject === '科学' && (
+          <div className="mb-2">
+            <select value={selectedSemester}
+              onChange={e => { setSelectedSemester(e.target.value); setChapterSelectValue(''); setSelectedSectionId(null); setSelectedLessonNum(''); setSelectedChapterId(null); }}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
               <option value="">选学期</option>
               {SEMESTERS.map(s => <option key={s} value={s}>{s.replace('年级', '')}</option>)}
             </select>
-            <select value={selectedChapterNum} onChange={e => { setSelectedChapterNum(e.target.value ? Number(e.target.value) : ''); setSelectedChapterId(null); }}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" disabled={!selectedSemester}>
-              <option value="">选章</option>
-              {Object.keys(chapterGroups).map(num => (
-                <option key={num} value={num}>第{num}章 {chapterGroups[Number(num)][0]?.chapterTitle}</option>
-              ))}
-            </select>
-            <select value={selectedChapterId || ''} onChange={e => setSelectedChapterId(e.target.value ? Number(e.target.value) : null)}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" disabled={!selectedChapterNum}>
-              <option value="">选节</option>
-              {allSections.map(s => (
-                <option key={s.id} value={s.id}>{s.isSpecial ? s.sectionTitle : `${s.sectionNum}. ${s.sectionTitle}`}</option>
-              ))}
-            </select>
           </div>
+        )}
+
+        {/* 三级选择：选章 / 选节 / 选课时 */}
+        <div className="grid grid-cols-3 gap-2">
+          {/* 选章（含特殊条目：期中/期末/寒暑假等） */}
+          <select
+            value={chapterSelectValue}
+            disabled={subject !== '科学' || !selectedSemester}
+            onChange={e => {
+              const val = e.target.value;
+              setChapterSelectValue(val);
+              setSelectedSectionId(null);
+              setSelectedLessonNum('');
+              setSelectedChapterId(val.startsWith('sp-') ? Number(val.slice(3)) : null);
+            }}
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50 disabled:text-gray-300">
+            <option value="">选章</option>
+            {subject === '科学' && Object.keys(chapterGroups).sort((a, b) => Number(a) - Number(b)).map(num => (
+              <option key={`ch-${num}`} value={`ch-${num}`}>第{num}章 {chapterGroups[Number(num)][0]?.chapterTitle}</option>
+            ))}
+            {subject === '科学' && specialItems.map(sp => (
+              <option key={`sp-${sp.id}`} value={`sp-${sp.id}`}>{sp.sectionTitle}</option>
+            ))}
+          </select>
+
+          {/* 选节（普通章节选中后可用，特殊条目时禁用） */}
+          <select
+            value={selectedSectionId || ''}
+            disabled={!chapterSelectValue || isSpecialSelected}
+            onChange={e => {
+              const id = e.target.value ? Number(e.target.value) : null;
+              setSelectedSectionId(id);
+              setSelectedChapterId(id);
+              setSelectedLessonNum('');
+            }}
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50 disabled:text-gray-300">
+            <option value="">选节</option>
+            {sectionsForChapter.map(s => (
+              <option key={s.id} value={s.id}>第{s.sectionNum}节 {s.sectionTitle}</option>
+            ))}
+          </select>
+
+          {/* 选课时（选节后可用，特殊条目时禁用） */}
+          <select
+            value={selectedLessonNum}
+            disabled={!selectedSectionId || isSpecialSelected}
+            onChange={e => setSelectedLessonNum(e.target.value ? Number(e.target.value) : '')}
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50 disabled:text-gray-300">
+            <option value="">选课时</option>
+            {[1,2,3,4,5,6,7,8].map(n => (
+              <option key={n} value={n}>第{n}课时</option>
+            ))}
+          </select>
         </div>
-      )}
+      </div>
 
       {/* 难度 */}
       <div>
