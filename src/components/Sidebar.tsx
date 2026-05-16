@@ -2,7 +2,6 @@
 
 import { Subject, Grade } from '@/types';
 import { Menu, X, LogIn, LogOut, ShieldCheck, User, Search, FolderHeart } from 'lucide-react';
-import UploadForm from '@/components/UploadForm';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
@@ -20,7 +19,6 @@ interface SidebarProps {
   onGradeChange: (grade: string) => void;
   onSearchChange: (keyword: string) => void;
   onUploaderFilterChange: (uploader: string) => void;
-  onUploadSuccess?: () => void;
 }
 
 export default function Sidebar({
@@ -32,7 +30,6 @@ export default function Sidebar({
   onGradeChange,
   onSearchChange,
   onUploaderFilterChange,
-  onUploadSuccess,
 }: SidebarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { user, logout } = useAuth();
@@ -120,7 +117,10 @@ export default function Sidebar({
       {/* 上传资源 + 我的校本作业（登录后可见） */}
       {user && (
         <div className="px-5 py-3 border-b border-gray-100 space-y-2">
-          <UploadForm inline onSuccess={onUploadSuccess} />
+          <Link href="/upload"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-[#4F6EF7] hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition">
+            <span>&#43;</span> 上传资源
+          </Link>
           <Link href="/my-collection"
             className="flex items-center gap-2 px-3 py-2 rounded text-sm text-gray-600 hover:text-[#4F6EF7] hover:bg-blue-50 transition font-medium">
             <FolderHeart className="w-4 h-4" />

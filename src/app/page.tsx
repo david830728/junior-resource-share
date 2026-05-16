@@ -125,7 +125,6 @@ export default function Home() {
           onGradeChange={setSelectedGrade}
           onSearchChange={setSearchKeyword}
           onUploaderFilterChange={setUploaderFilter}
-          onUploadSuccess={() => setRefreshKey(k => k + 1)}
         />
 
         <main className="flex-1 min-w-0 p-6 pl-20 md:pl-6">

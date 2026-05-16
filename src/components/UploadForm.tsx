@@ -5,6 +5,7 @@ import { Subject, Grade, TextbookChapter, Difficulty } from '@/types';
 import { Upload, X, LogIn } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 const SUBJECTS: Subject[] = ['语文', '数学', '英语', '科学', '历史', '地理', '道法'];
@@ -19,10 +20,12 @@ const DIFFICULTIES: { value: Difficulty; label: string; color: string }[] = [
 interface UploadFormProps {
   onSuccess?: () => void;
   inline?: boolean;
+  standalone?: boolean;
 }
 
-export default function UploadForm({ onSuccess, inline = false }: UploadFormProps) {
+export default function UploadForm({ onSuccess, inline = false, standalone = false }: UploadFormProps) {
   const { user } = useAuth();
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -116,19 +119,156 @@ export default function UploadForm({ onSuccess, inline = false }: UploadFormProp
         setFile(null); setTitle(''); setSubject(''); setGrade(''); setDescription('');
         setDifficulty('基础'); setSelectedChapterId(null); setSelectedSemester('');
         setSelectedChapterNum(''); setAutoDetected('');
-        setTimeout(() => { setIsOpen(false); onSuccess?.(); }, 1500);
+        if (standalone) {
+          setTimeout(() => { onSuccess?.(); router.push('/'); }, 1500);
+        } else {
+          setTimeout(() => { setIsOpen(false); onSuccess?.(); }, 1500);
+        }
       }
     } catch { setError('上传失败，请重试'); }
     finally { setLoading(false); }
   };
 
   if (!user || (user.role !== 'teacher' && user.role !== 'admin')) {
-    if (inline) return null;
+    if (inline || standalone) return null;
     return (
       <Link href="/login"
         className="fixed bottom-8 right-8 bg-gray-400 hover:bg-gray-500 text-white rounded-full p-4 shadow-lg transition flex items-center gap-2 font-semibold">
         <LogIn className="w-6 h-6" />登录后上传
       </Link>
+    );
+  }
+
+  const formFields = (
+    <>
+      {/* 命名规范提示 */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-700">
+        💡 <strong>命名规范：</strong>按章节编号命名可自动识别位置，例如「1.2.3 欧姆定律练习.docx」表示第1章第2节第3课时
+      </div>
+
+      {/* 文件选择 */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">选择文件 *</label>
+        <div className="border-2 border-dashed border-gray-200 rounded-lg p-5 text-center hover:border-[#4F6EF7] transition cursor-pointer">
+          <input type="file" onChange={handleFileChange} className="hidden" id="file-input" />
+          <label htmlFor="file-input" className="cursor-pointer">
+            {file ? (
+              <div><p className="text-gray-700 font-semibold text-sm">{file.name}</p>
+                <p className="text-gray-400 text-xs mt-1">{(file.size / 1024 / 1024).toFixed(2)} MB</p></div>
+            ) : (
+              <div><Upload className="w-7 h-7 text-gray-300 mx-auto mb-2" />
+                <p className="text-gray-500 text-sm">点击选择文件</p>
+                <p className="text-gray-400 text-xs">支持 Word、PDF、PPT 等</p></div>
+            )}
+          </label>
+        </div>
+        {autoDetected && (
+          <p className="mt-1.5 text-xs text-green-600 bg-green-50 border border-green-200 rounded px-3 py-1.5">✓ {autoDetected}</p>
+        )}
+      </div>
+
+      {/* 标题 */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">资源标题 *</label>
+        <input type="text" value={title} onChange={e => setTitle(e.target.value)}
+          placeholder="例如：七年级上册科学第一章练习" 
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+      </div>
+
+      {/* 学科 + 学段 */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">学科 *</label>
+          <select value={subject} onChange={e => { setSubject(e.target.value as Subject); setSelectedChapterId(null); setSelectedSemester(''); setAutoDetected(''); }}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+            <option value="">选择学科</option>
+            {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">学段 *</label>
+          <select value={grade} onChange={e => setGrade(e.target.value as Grade)}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+            <option value="">选择学段</option>
+            {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {/* 章节选择（科学学科） */}
+      {subject === '科学' && (
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">章节位置</label>
+          <div className="grid grid-cols-3 gap-2">
+            <select value={selectedSemester} onChange={e => { setSelectedSemester(e.target.value); setSelectedChapterNum(''); setSelectedChapterId(null); }}
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+              <option value="">选学期</option>
+              {SEMESTERS.map(s => <option key={s} value={s}>{s.replace('年级', '')}</option>)}
+            </select>
+            <select value={selectedChapterNum} onChange={e => { setSelectedChapterNum(e.target.value ? Number(e.target.value) : ''); setSelectedChapterId(null); }}
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" disabled={!selectedSemester}>
+              <option value="">选章</option>
+              {Object.keys(chapterGroups).map(num => (
+                <option key={num} value={num}>第{num}章 {chapterGroups[Number(num)][0]?.chapterTitle}</option>
+              ))}
+            </select>
+            <select value={selectedChapterId || ''} onChange={e => setSelectedChapterId(e.target.value ? Number(e.target.value) : null)}
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" disabled={!selectedChapterNum}>
+              <option value="">选节</option>
+              {allSections.map(s => (
+                <option key={s.id} value={s.id}>{s.isSpecial ? s.sectionTitle : `${s.sectionNum}. ${s.sectionTitle}`}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
+
+      {/* 难度 */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">难度</label>
+        <div className="flex gap-2">
+          {DIFFICULTIES.map(d => (
+            <button key={d.value} type="button" onClick={() => setDifficulty(d.value)}
+              className={`flex-1 py-2 border-2 rounded-lg text-sm font-semibold transition ${difficulty === d.value ? d.color + ' border-opacity-100' : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}>
+              {d.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 描述 */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">试卷使用说明（选填）</label>
+        <textarea value={description} onChange={e => setDescription(e.target.value)}
+          placeholder="可说明出卷意图、各题设计思路、适用班级建议等，例如：第1-3题考查基础概念，第4题为开放性拓展，建议实验班选做……"
+          rows={3}
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none" />
+      </div>
+
+      {/* 上传者 */}
+      <div className="text-xs text-gray-400 bg-gray-50 rounded px-3 py-2">
+        上传者：<span className="font-semibold text-gray-600">{user.displayName}</span>
+      </div>
+    </>
+  );
+
+  if (standalone) {
+    return (
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded text-sm">{error}</div>}
+        {success && <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-2 rounded text-sm">{success}</div>}
+        {formFields}
+        <div className="flex gap-3 pt-2">
+          <button type="button" onClick={() => router.back()}
+            className="flex-1 px-4 py-2 border border-gray-200 text-gray-600 font-semibold rounded-lg hover:bg-gray-50 transition text-sm">
+            返回
+          </button>
+          <button type="submit" disabled={loading}
+            className="flex-1 px-4 py-2 bg-[#4F6EF7] hover:bg-blue-700 text-white font-semibold rounded-lg transition disabled:opacity-50 text-sm">
+            {loading ? '上传中...' : '上传'}
+          </button>
+        </div>
+      </form>
     );
   }
 
@@ -159,116 +299,7 @@ export default function UploadForm({ onSuccess, inline = false }: UploadFormProp
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded text-sm">{error}</div>}
               {success && <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-2 rounded text-sm">{success}</div>}
-
-              {/* 命名规范提示 */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-700">
-                💡 <strong>命名规范：</strong>按章节编号命名可自动识别位置，例如「1.2.3 欧姆定律练习.docx」表示第1章第2节第3课时
-              </div>
-
-              {/* 文件选择 */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">选择文件 *</label>
-                <div className="border-2 border-dashed border-gray-200 rounded-lg p-5 text-center hover:border-[#4F6EF7] transition cursor-pointer">
-                  <input type="file" onChange={handleFileChange} className="hidden" id="file-input" />
-                  <label htmlFor="file-input" className="cursor-pointer">
-                    {file ? (
-                      <div><p className="text-gray-700 font-semibold text-sm">{file.name}</p>
-                        <p className="text-gray-400 text-xs mt-1">{(file.size / 1024 / 1024).toFixed(2)} MB</p></div>
-                    ) : (
-                      <div><Upload className="w-7 h-7 text-gray-300 mx-auto mb-2" />
-                        <p className="text-gray-500 text-sm">点击选择文件</p>
-                        <p className="text-gray-400 text-xs">支持 Word、PDF、PPT 等</p></div>
-                    )}
-                  </label>
-                </div>
-                {autoDetected && (
-                  <p className="mt-1.5 text-xs text-green-600 bg-green-50 border border-green-200 rounded px-3 py-1.5">✓ {autoDetected}</p>
-                )}
-              </div>
-
-              {/* 标题 */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">资源标题 *</label>
-                <input type="text" value={title} onChange={e => setTitle(e.target.value)}
-                  placeholder="例如：七年级上册科学第一章练习" 
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
-              </div>
-
-              {/* 学科 + 学段 */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">学科 *</label>
-                  <select value={subject} onChange={e => { setSubject(e.target.value as Subject); setSelectedChapterId(null); setSelectedSemester(''); setAutoDetected(''); }}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
-                    <option value="">选择学科</option>
-                    {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">学段 *</label>
-                  <select value={grade} onChange={e => setGrade(e.target.value as Grade)}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
-                    <option value="">选择学段</option>
-                    {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              {/* 章节选择（科学学科） */}
-              {subject === '科学' && (
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">章节位置</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <select value={selectedSemester} onChange={e => { setSelectedSemester(e.target.value); setSelectedChapterNum(''); setSelectedChapterId(null); }}
-                      className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
-                      <option value="">选学期</option>
-                      {SEMESTERS.map(s => <option key={s} value={s}>{s.replace('年级', '')}</option>)}
-                    </select>
-                    <select value={selectedChapterNum} onChange={e => { setSelectedChapterNum(e.target.value ? Number(e.target.value) : ''); setSelectedChapterId(null); }}
-                      className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" disabled={!selectedSemester}>
-                      <option value="">选章</option>
-                      {Object.keys(chapterGroups).map(num => (
-                        <option key={num} value={num}>第{num}章 {chapterGroups[Number(num)][0]?.chapterTitle}</option>
-                      ))}
-                    </select>
-                    <select value={selectedChapterId || ''} onChange={e => setSelectedChapterId(e.target.value ? Number(e.target.value) : null)}
-                      className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" disabled={!selectedChapterNum}>
-                      <option value="">选节</option>
-                      {allSections.map(s => (
-                        <option key={s.id} value={s.id}>{s.isSpecial ? s.sectionTitle : `${s.sectionNum}. ${s.sectionTitle}`}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              )}
-
-              {/* 难度 */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">难度</label>
-                <div className="flex gap-2">
-                  {DIFFICULTIES.map(d => (
-                    <button key={d.value} type="button" onClick={() => setDifficulty(d.value)}
-                      className={`flex-1 py-2 border-2 rounded-lg text-sm font-semibold transition ${difficulty === d.value ? d.color + ' border-opacity-100' : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}>
-                      {d.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 描述 */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">试卷使用说明（选填）</label>
-                <textarea value={description} onChange={e => setDescription(e.target.value)}
-                  placeholder="可说明出卷意图、各题设计思路、适用班级建议等，例如：第1-3题考查基础概念，第4题为开放性拓展，建议实验班选做……"
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none" />
-              </div>
-
-              {/* 上传者 */}
-              <div className="text-xs text-gray-400 bg-gray-50 rounded px-3 py-2">
-                上传者：<span className="font-semibold text-gray-600">{user.displayName}</span>
-              </div>
-
+              {formFields}
               {/* 按钮 */}
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setIsOpen(false)}
