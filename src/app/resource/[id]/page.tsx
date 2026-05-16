@@ -90,23 +90,23 @@ export default async function ResourceDetailPage({
           <div className="bg-white rounded-[8px] shadow-[0_1px_4px_rgba(0,0,0,0.08)] overflow-hidden" style={{ minHeight: '70vh' }}>
             {resource.pdfPath ? (
               <iframe
-                src={`/uploads/${resource.pdfPath}#toolbar=1`}
+                src={`/api/uploads/${resource.pdfPath}#toolbar=1`}
                 className="w-full"
                 style={{ height: '80vh' }}
                 title={resource.title}
               />
             ) : resource.fileType === 'pdf' ? (
               <iframe
-                src={`/uploads/${resource.fileName}#toolbar=1`}
+                src={`/api/uploads/${resource.fileName}#toolbar=1`}
                 className="w-full"
                 style={{ height: '80vh' }}
                 title={resource.title}
               />
             ) : resource.fileType === 'image' ? (
-              <img src={`/uploads/${resource.fileName}`} alt={resource.title} className="w-full object-contain" style={{ maxHeight: '80vh' }} />
+              <img src={`/api/uploads/${resource.fileName}`} alt={resource.title} className="w-full object-contain" style={{ maxHeight: '80vh' }} />
             ) : resource.fileType === 'video' ? (
               <video controls className="w-full" style={{ maxHeight: '80vh' }}>
-                <source src={`/uploads/${resource.fileName}`} />你的浏览器不支持视频播放
+                <source src={`/api/uploads/${resource.fileName}`} />你的浏览器不支持视频播放
               </video>
             ) : (
               <div className="flex flex-col items-center justify-center h-full p-16 text-center" style={{ minHeight: '60vh' }}>
@@ -114,7 +114,7 @@ export default async function ResourceDetailPage({
                   {resource.fileType === 'word' ? '📝' : resource.fileType === 'ppt' ? '📊' : resource.fileType === 'excel' ? '📈' : '📄'}
                 </div>
                 <p className="text-gray-500 mb-4">暂不支持预览，请下载后查看</p>
-                <a href={`/uploads/${resource.fileName}`} target="_blank" rel="noopener noreferrer"
+                <a href={`/api/uploads/${resource.fileName}`} target="_blank" rel="noopener noreferrer"
                   className="px-5 py-2 bg-[#4F6EF7] text-white rounded-lg hover:bg-blue-700 text-sm font-semibold transition">
                   在新窗口打开
                 </a>
