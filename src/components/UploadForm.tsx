@@ -10,7 +10,10 @@ import Link from 'next/link';
 
 const SUBJECTS: Subject[] = ['语文', '数学', '英语', '科学', '历史', '地理', '道法'];
 const GRADES: Grade[] = ['七上', '七下', '八上', '八下', '九上', '九下'];
-const SEMESTERS = ['七年级上', '七年级下', '八年级上', '八年级下'];
+const GRADE_TO_SEMESTER: Partial<Record<Grade, string>> = {
+  '七上': '七年级上', '七下': '七年级下',
+  '八上': '八年级上', '八下': '八年级下',
+};
 const DIFFICULTIES: { value: Difficulty; label: string; color: string }[] = [
   { value: '基础', label: '🔵 基础', color: 'border-blue-400 bg-blue-50 text-blue-700' },
   { value: '提高', label: '🟡 提高', color: 'border-orange-400 bg-orange-50 text-orange-700' },
@@ -39,23 +42,27 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
 
   // Chapter selection
   const [chapters, setChapters] = useState<TextbookChapter[]>([]);
-  const [selectedSemester, setSelectedSemester] = useState('');
   const [chapterSelectValue, setChapterSelectValue] = useState(''); // 'ch-{num}' | 'sp-{id}' | ''
   const [selectedSectionId, setSelectedSectionId] = useState<number | null>(null);
   const [selectedLessonNum, setSelectedLessonNum] = useState<number | ''>('');
   const [selectedChapterId, setSelectedChapterId] = useState<number | null>(null);
   const [autoDetected, setAutoDetected] = useState('');
 
-  // Fetch chapters when semester selected and subject is 科学
+  // Fetch chapters when grade selected and subject is 科学（学段已隐含学期）
   useEffect(() => {
-    if (subject === '科学' && selectedSemester) {
-      axios.get(`/api/chapters?subject=科学&semester=${encodeURIComponent(selectedSemester)}`)
-        .then(r => { if (r.data.success) setChapters(r.data.data); })
-        .catch(() => {});
+    if (subject === '科学' && grade) {
+      const semester = GRADE_TO_SEMESTER[grade as Grade];
+      if (semester) {
+        axios.get(`/api/chapters?subject=科学&semester=${encodeURIComponent(semester)}`)
+          .then(r => { if (r.data.success) setChapters(r.data.data); })
+          .catch(() => {});
+      } else {
+        setChapters([]);
+      }
     } else {
       setChapters([]);
     }
-  }, [subject, selectedSemester]);
+  }, [subject, grade]);
 
   const chapterGroups = chapters.filter(c => !c.isSpecial).reduce<Record<number, TextbookChapter[]>>((acc, c) => {
     const k = c.chapterNum!;
@@ -111,7 +118,7 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
     if (!title.trim()) { setError('请输入资源标题'); return; }
     if (!subject) { setError('请选择学科'); return; }
     if (!grade) { setError('请选择学段'); return; }
-    if (subject === '科学' && !selectedChapterId) { setError('科学资源请选择章节位置'); return; }
+    if (subject === '科学' && chapters.length > 0 && !selectedChapterId) { setError('科学资源请选择章节位置'); return; }
 
     try {
       setLoading(true);
@@ -128,7 +135,7 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
       if (res.data.success) {
         setSuccess('上传成功！');
         setFile(null); setTitle(''); setSubject(''); setGrade(''); setDescription('');
-        setDifficulty('基础'); setSelectedChapterId(null); setSelectedSemester('');
+        setDifficulty('基础'); setSelectedChapterId(null);
         setChapterSelectValue(''); setSelectedSectionId(null); setSelectedLessonNum(''); setAutoDetected('');
         if (standalone) {
           setTimeout(() => { onSuccess?.(); router.push('/'); }, 1500);
@@ -157,40 +164,11 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
         💡 <strong>命名规范：</strong>按章节编号命名可自动识别位置，例如「1.2.3 欧姆定律练习.docx」表示第1章第2节第3课时
       </div>
 
-      {/* 文件选择 */}
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">选择文件 *</label>
-        <div className="border-2 border-dashed border-gray-200 rounded-lg p-5 text-center hover:border-[#4F6EF7] transition cursor-pointer">
-          <input type="file" onChange={handleFileChange} className="hidden" id="file-input" />
-          <label htmlFor="file-input" className="cursor-pointer">
-            {file ? (
-              <div><p className="text-gray-700 font-semibold text-sm">{file.name}</p>
-                <p className="text-gray-400 text-xs mt-1">{(file.size / 1024 / 1024).toFixed(2)} MB</p></div>
-            ) : (
-              <div><Upload className="w-7 h-7 text-gray-300 mx-auto mb-2" />
-                <p className="text-gray-500 text-sm">点击选择文件</p>
-                <p className="text-gray-400 text-xs">支持 Word、PDF、PPT 等</p></div>
-            )}
-          </label>
-        </div>
-        {autoDetected && (
-          <p className="mt-1.5 text-xs text-green-600 bg-green-50 border border-green-200 rounded px-3 py-1.5">✓ {autoDetected}</p>
-        )}
-      </div>
-
-      {/* 标题 */}
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">资源标题 *</label>
-        <input type="text" value={title} onChange={e => setTitle(e.target.value)}
-          placeholder="例如：1.2.3 欧姆定律练习" 
-          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
-      </div>
-
-      {/* 学科 + 学段 */}
+      {/* 1. 学科 + 学段 */}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">学科 *</label>
-          <select value={subject} onChange={e => { setSubject(e.target.value as Subject); setSelectedChapterId(null); setSelectedSemester(''); setChapterSelectValue(''); setSelectedSectionId(null); setSelectedLessonNum(''); setAutoDetected(''); }}
+          <select value={subject} onChange={e => { setSubject(e.target.value as Subject); setSelectedChapterId(null); setChapterSelectValue(''); setSelectedSectionId(null); setSelectedLessonNum(''); setAutoDetected(''); }}
             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
             <option value="">选择学科</option>
             {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
@@ -198,7 +176,7 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
         </div>
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">学段 *</label>
-          <select value={grade} onChange={e => setGrade(e.target.value as Grade)}
+          <select value={grade} onChange={e => { setGrade(e.target.value as Grade); setChapterSelectValue(''); setSelectedSectionId(null); setSelectedLessonNum(''); setSelectedChapterId(null); }}
             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
             <option value="">选择学段</option>
             {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
@@ -206,32 +184,19 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
         </div>
       </div>
 
-      {/* 章节位置（科学强制，其他学科待扩展） */}
+      {/* 2. 章节位置（学段决定学期，无需单独选学期） */}
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-2">
           章节位置
-          {subject === '科学' && <span className="text-red-500 ml-0.5">*</span>}
+          {subject === '科学' && chapters.length > 0 && <span className="text-red-500 ml-0.5">*</span>}
+          {subject === '科学' && grade && chapters.length === 0 && <span className="text-xs text-gray-400 font-normal ml-1">（该学段暂无章节数据）</span>}
           {subject && subject !== '科学' && <span className="text-xs text-gray-400 font-normal ml-1">（暂无该学科章节数据）</span>}
         </label>
-
-        {/* 学期选择：仅科学 */}
-        {subject === '科学' && (
-          <div className="mb-2">
-            <select value={selectedSemester}
-              onChange={e => { setSelectedSemester(e.target.value); setChapterSelectValue(''); setSelectedSectionId(null); setSelectedLessonNum(''); setSelectedChapterId(null); }}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
-              <option value="">选学期</option>
-              {SEMESTERS.map(s => <option key={s} value={s}>{s.replace('年级', '')}</option>)}
-            </select>
-          </div>
-        )}
-
-        {/* 三级选择：选章 / 选节 / 选课时 */}
         <div className="grid grid-cols-3 gap-2">
           {/* 选章（含特殊条目：期中/期末/寒暑假等） */}
           <select
             value={chapterSelectValue}
-            disabled={subject !== '科学' || !selectedSemester}
+            disabled={subject !== '科学' || chapters.length === 0}
             onChange={e => {
               const val = e.target.value;
               setChapterSelectValue(val);
@@ -241,10 +206,10 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
             }}
             className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50 disabled:text-gray-300">
             <option value="">选章</option>
-            {subject === '科学' && Object.keys(chapterGroups).sort((a, b) => Number(a) - Number(b)).map(num => (
+            {Object.keys(chapterGroups).sort((a, b) => Number(a) - Number(b)).map(num => (
               <option key={`ch-${num}`} value={`ch-${num}`}>第{num}章 {chapterGroups[Number(num)][0]?.chapterTitle}</option>
             ))}
-            {subject === '科学' && specialItems.map(sp => (
+            {specialItems.map(sp => (
               <option key={`sp-${sp.id}`} value={`sp-${sp.id}`}>{sp.sectionTitle}</option>
             ))}
           </select>
@@ -278,6 +243,35 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
             ))}
           </select>
         </div>
+      </div>
+
+      {/* 3. 文件选择（选好学科学段后上传，自动识别章节） */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">选择文件 *</label>
+        <div className="border-2 border-dashed border-gray-200 rounded-lg p-5 text-center hover:border-[#4F6EF7] transition cursor-pointer">
+          <input type="file" onChange={handleFileChange} className="hidden" id="file-input" />
+          <label htmlFor="file-input" className="cursor-pointer">
+            {file ? (
+              <div><p className="text-gray-700 font-semibold text-sm">{file.name}</p>
+                <p className="text-gray-400 text-xs mt-1">{(file.size / 1024 / 1024).toFixed(2)} MB</p></div>
+            ) : (
+              <div><Upload className="w-7 h-7 text-gray-300 mx-auto mb-2" />
+                <p className="text-gray-500 text-sm">点击选择文件</p>
+                <p className="text-gray-400 text-xs">支持 Word、PDF、PPT 等</p></div>
+            )}
+          </label>
+        </div>
+        {autoDetected && (
+          <p className="mt-1.5 text-xs text-green-600 bg-green-50 border border-green-200 rounded px-3 py-1.5">✓ {autoDetected}</p>
+        )}
+      </div>
+
+      {/* 4. 标题 */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">资源标题 *</label>
+        <input type="text" value={title} onChange={e => setTitle(e.target.value)}
+          placeholder="例如：1.2.3 欧姆定律练习"
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
       </div>
 
       {/* 难度 */}
