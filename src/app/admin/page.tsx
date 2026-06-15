@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import axios from 'axios';
-import { Users, CheckCircle, XCircle, Trash2, ShieldCheck, ArrowLeft, RefreshCw } from 'lucide-react';
+import { Users, CheckCircle, XCircle, Trash2, ShieldCheck, ArrowLeft, RefreshCw, BookOpen } from 'lucide-react';
 import Link from 'next/link';
+import ChapterManager from '@/components/ChapterManager';
 
 interface UserRecord {
   id: number;
@@ -32,7 +33,7 @@ export default function AdminPage() {
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [fetching, setFetching] = useState(true);
   const [msg, setMsg] = useState('');
-  const [activeTab, setActiveTab] = useState<'pending' | 'all'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'all' | 'chapters'>('pending');
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'admin')) {
@@ -162,9 +163,24 @@ export default function AdminPage() {
             >
               所有用户 ({users.length})
             </button>
+            <button
+              onClick={() => setActiveTab('chapters')}
+              className={`flex-1 py-4 text-sm font-semibold transition flex items-center justify-center gap-1.5 ${
+                activeTab === 'chapters'
+                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <BookOpen className="w-4 h-4" />
+              章节管理
+            </button>
           </div>
 
-          {fetching ? (
+          {activeTab === 'chapters' ? (
+            <div className="p-6">
+              <ChapterManager />
+            </div>
+          ) : fetching ? (
             <div className="text-center py-12 text-gray-500">加载中...</div>
           ) : displayed.length === 0 ? (
             <div className="text-center py-12 text-gray-400">
@@ -261,3 +277,4 @@ export default function AdminPage() {
     </div>
   );
 }
+

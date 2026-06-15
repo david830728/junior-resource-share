@@ -32,12 +32,14 @@ export default function Home() {
   const [newResources, setNewResources] = useState<Resource[]>([]);
   const [quickLoading, setQuickLoading] = useState(true);
 
-  // Fetch chapters when 科学 is selected or semester changes
+  // Fetch chapters when any subject is selected or semester changes
   useEffect(() => {
-    if (selectedSubject === '科学') {
-      axios.get(`/api/chapters?subject=科学&semester=${encodeURIComponent(selectedSemester)}`)
-        .then(r => { if (r.data.success) setChapters(r.data.data); })
-        .catch(() => {});
+    if (selectedSubject) {
+      axios.get(`/api/chapters?subject=${encodeURIComponent(selectedSubject)}&semester=${encodeURIComponent(selectedSemester)}`)
+        .then(r => { if (r.data.success) setChapters(r.data.data); else setChapters([]); })
+        .catch(() => setChapters([]));
+    } else {
+      setChapters([]);
     }
   }, [selectedSubject, selectedSemester]);
 
@@ -81,7 +83,7 @@ export default function Home() {
   }, {});
   const specialSections = chapters.filter(c => c.isSpecial);
 
-  const showChapterTree = selectedSubject === '科学';
+  const showChapterTree = selectedSubject !== '' && chapters.length > 0;
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F5F7FA]">
@@ -121,7 +123,7 @@ export default function Home() {
           selectedGrade={selectedGrade}
           searchKeyword={searchKeyword}
           uploaderFilter={uploaderFilter}
-          onSubjectChange={s => { setSelectedSubject(s); setSelectedChapterId(null); setSelectedChapterLabel(''); }}
+          onSubjectChange={s => { setSelectedSubject(s); setSelectedChapterId(null); setSelectedChapterLabel(''); setChapters([]); }}
           onGradeChange={setSelectedGrade}
           onSearchChange={setSearchKeyword}
           onUploaderFilterChange={setUploaderFilter}

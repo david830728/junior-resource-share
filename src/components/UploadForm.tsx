@@ -50,12 +50,12 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
 
   // Fetch chapters when grade selected and subject is 科学（学段已隐含学期）
   useEffect(() => {
-    if (subject === '科学' && grade) {
+    if (subject && grade) {
       const semester = GRADE_TO_SEMESTER[grade as Grade];
       if (semester) {
-        axios.get(`/api/chapters?subject=科学&semester=${encodeURIComponent(semester)}`)
-          .then(r => { if (r.data.success) setChapters(r.data.data); })
-          .catch(() => {});
+        axios.get(`/api/chapters?subject=${encodeURIComponent(subject)}&semester=${encodeURIComponent(semester)}`)
+          .then(r => { if (r.data.success) setChapters(r.data.data); else setChapters([]); })
+          .catch(() => setChapters([]));
       } else {
         setChapters([]);
       }
@@ -95,8 +95,8 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
     setError('');
     if (!title) setTitle(f.name.replace(/\.[^.]+$/, ''));
 
-    // Auto-detect chapter from filename if subject is 科学
-    if (subject === '科学' && chapters.length > 0) {
+    // Auto-detect chapter from filename if chapter data exists
+    if (chapters.length > 0) {
       const result = parseChapterFromFilename(f.name, chapters);
       if (result) {
         const { section, lessonNum } = result;
@@ -118,7 +118,7 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
     if (!title.trim()) { setError('请输入资源标题'); return; }
     if (!subject) { setError('请选择学科'); return; }
     if (!grade) { setError('请选择学段'); return; }
-    if (subject === '科学' && chapters.length > 0 && !selectedChapterId) { setError('科学资源请选择章节位置'); return; }
+    if (chapters.length > 0 && !selectedChapterId) { setError('请选择章节位置'); return; }
 
     try {
       setLoading(true);
@@ -188,15 +188,14 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-2">
           章节位置
-          {subject === '科学' && chapters.length > 0 && <span className="text-red-500 ml-0.5">*</span>}
-          {subject === '科学' && grade && chapters.length === 0 && <span className="text-xs text-gray-400 font-normal ml-1">（该学段暂无章节数据）</span>}
-          {subject && subject !== '科学' && <span className="text-xs text-gray-400 font-normal ml-1">（暂无该学科章节数据）</span>}
+          {chapters.length > 0 && <span className="text-red-500 ml-0.5">*</span>}
+          {subject && grade && chapters.length === 0 && <span className="text-xs text-gray-400 font-normal ml-1">（该学科暂无章节数据，管理员可在后台添加）</span>}
         </label>
         <div className="grid grid-cols-3 gap-2">
           {/* 选章（含特殊条目：期中/期末/寒暑假等） */}
           <select
             value={chapterSelectValue}
-            disabled={subject !== '科学' || chapters.length === 0}
+            disabled={chapters.length === 0}
             onChange={e => {
               const val = e.target.value;
               setChapterSelectValue(val);
