@@ -5,7 +5,7 @@ import Sidebar from '@/components/Sidebar';
 import ResourceList from '@/components/ResourceList';
 import ResourceCard from '@/components/ResourceCard';
 
-import { TextbookChapter, Resource } from '@/types';
+import { TextbookChapter, TextbookSubsection, Resource } from '@/types';
 import axios from 'axios';
 import { ChevronDown, ChevronRight, Flame, Clock } from 'lucide-react';
 
@@ -24,8 +24,13 @@ export default function Home() {
   const [chapters, setChapters] = useState<TextbookChapter[]>([]);
   const [expandedChapters, setExpandedChapters] = useState<Set<number>>(new Set([1]));
   const [selectedChapterId, setSelectedChapterId] = useState<number | null>(null);
+  const [selectedSubsectionId, setSelectedSubsectionId] = useState<number | null>(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('');
   const [selectedChapterLabel, setSelectedChapterLabel] = useState('');
+
+  // Subsection lazy load
+  const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set());
+  const [subsectionCache, setSubsectionCache] = useState<Record<number, TextbookSubsection[]>>({});
 
   // Quick entry resources
   const [hotResources, setHotResources] = useState<Resource[]>([]);
@@ -65,11 +70,33 @@ export default function Home() {
     });
   };
 
+  const loadSubsections = (sectionId: number) => {
+    if (subsectionCache[sectionId] !== undefined) return;
+    axios.get(`/api/subsections?chapterId=${sectionId}`)
+      .then(r => { if (r.data.success) setSubsectionCache(prev => ({ ...prev, [sectionId]: r.data.data })); })
+      .catch(() => {});
+  };
+
+  const toggleSectionExpand = (sectionId: number) => {
+    const next = new Set(expandedSections);
+    if (next.has(sectionId)) { next.delete(sectionId); } else { next.add(sectionId); loadSubsections(sectionId); }
+    setExpandedSections(next);
+  };
+
   const selectSection = (chapter: TextbookChapter) => {
     setSelectedChapterId(chapter.id);
+    setSelectedSubsectionId(null);
     const label = chapter.isSpecial
       ? `${chapter.semester} · ${chapter.sectionTitle}`
-      : `${chapter.semester} · 第${chapter.chapterNum}章 · ${chapter.sectionTitle}`;
+      : `${chapter.semester} · 第${chapter.chapterNum}章 · 第${chapter.sectionNum}节 ${chapter.sectionTitle}`;
+    setSelectedChapterLabel(label);
+    setSelectedDifficulty('');
+  };
+
+  const selectSubsection = (sub: TextbookSubsection, sec: TextbookChapter) => {
+    setSelectedSubsectionId(sub.id);
+    setSelectedChapterId(null);
+    const label = `${sec.semester} · 第${sec.chapterNum}章 · 第${sec.sectionNum}节 · ${sub.title}`;
     setSelectedChapterLabel(label);
     setSelectedDifficulty('');
   };
@@ -84,6 +111,7 @@ export default function Home() {
   const specialSections = chapters.filter(c => c.isSpecial);
 
   const showChapterTree = selectedSubject !== '' && chapters.length > 0;
+  const clearSelection = () => { setSelectedChapterId(null); setSelectedSubsectionId(null); setSelectedChapterLabel(''); };
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F5F7FA]">
@@ -123,7 +151,7 @@ export default function Home() {
           selectedGrade={selectedGrade}
           searchKeyword={searchKeyword}
           uploaderFilter={uploaderFilter}
-          onSubjectChange={s => { setSelectedSubject(s); setSelectedChapterId(null); setSelectedChapterLabel(''); setChapters([]); }}
+          onSubjectChange={s => { setSelectedSubject(s); setSelectedChapterId(null); setSelectedSubsectionId(null); setSelectedChapterLabel(''); setChapters([]); setSubsectionCache({}); setExpandedSections(new Set()); }}
           onGradeChange={setSelectedGrade}
           onSearchChange={setSearchKeyword}
           onUploaderFilterChange={setUploaderFilter}
@@ -181,7 +209,7 @@ export default function Home() {
               {/* 学期标签 */}
               <div className="flex flex-wrap gap-1 mb-3">
                 {SEMESTERS.map(sem => (
-                  <button key={sem} onClick={() => { setSelectedSemester(sem); setSelectedChapterId(null); setSelectedChapterLabel(''); }}
+                  <button key={sem} onClick={() => { setSelectedSemester(sem); clearSelection(); setSubsectionCache({}); setExpandedSections(new Set()); }}
                     className={`text-xs px-2 py-1 rounded-full font-medium transition ${selectedSemester === sem ? 'bg-[#4F6EF7] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
                     {sem.replace('年级', '')}
                   </button>
@@ -200,12 +228,33 @@ export default function Home() {
                         {expanded ? <ChevronDown className="w-3 h-3 flex-shrink-0" /> : <ChevronRight className="w-3 h-3 flex-shrink-0" />}
                         <span className="truncate text-xs">第{chNum}章 {title}</span>
                       </button>
-                      {expanded && sections.map(sec => (
-                        <button key={sec.id} onClick={() => selectSection(sec)}
-                          className={`w-full text-left pl-6 pr-2 py-1 text-xs rounded truncate transition ${selectedChapterId === sec.id ? 'text-[#4F6EF7] bg-blue-50 font-semibold' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'}`}>
-                          {sec.sectionNum}. {sec.sectionTitle}
-                        </button>
-                      ))}
+                      {expanded && sections.map(sec => {
+                        const secExpanded = expandedSections.has(sec.id);
+                        const subs = subsectionCache[sec.id] || [];
+                        return (
+                          <div key={sec.id}>
+                            <div className="flex items-center">
+                              <button onClick={() => toggleSectionExpand(sec.id)} className="pl-1 text-gray-300 hover:text-gray-500 flex-shrink-0">
+                                {secExpanded ? <ChevronDown className="w-2.5 h-2.5" /> : <ChevronRight className="w-2.5 h-2.5" />}
+                              </button>
+                              <button onClick={() => selectSection(sec)}
+                                className={`flex-1 text-left pl-1 pr-2 py-1 text-xs rounded truncate transition ${
+                                  selectedChapterId === sec.id && !selectedSubsectionId ? 'text-[#4F6EF7] bg-blue-50 font-semibold' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+                                }`}>
+                                {sec.sectionNum}. {sec.sectionTitle}
+                              </button>
+                            </div>
+                            {secExpanded && subs.map(sub => (
+                              <button key={sub.id} onClick={() => selectSubsection(sub, sec)}
+                                className={`w-full text-left pl-8 pr-2 py-0.5 text-xs rounded truncate transition ${
+                                  selectedSubsectionId === sub.id ? 'text-[#4F6EF7] bg-blue-50 font-semibold' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-50'
+                                }`}>
+                                {sub.code ? `${sub.code} ` : ''}{sub.title}
+                              </button>
+                            ))}
+                          </div>
+                        );
+                      })}
                     </div>
                   );
                 })}
@@ -224,7 +273,7 @@ export default function Home() {
 
             {/* 右：资源区 */}
             <div className="flex-1 min-w-0">
-              {selectedChapterId ? (
+              {(selectedChapterId || selectedSubsectionId) ? (
                 <>
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-sm text-gray-500">{selectedChapterLabel}</p>
@@ -238,9 +287,10 @@ export default function Home() {
                     </div>
                   </div>
                   <ResourceList
-                    key={`${selectedChapterId}-${selectedDifficulty}-${refreshKey}`}
+                    key={`${selectedChapterId}-${selectedSubsectionId}-${selectedDifficulty}-${refreshKey}`}
                     selectedSubject="" selectedGrade="" searchKeyword="" uploaderFilter=""
-                    chapterId={selectedChapterId}
+                    chapterId={selectedSubsectionId ? undefined : selectedChapterId ?? undefined}
+                    subsectionId={selectedSubsectionId ?? undefined}
                     difficulty={selectedDifficulty || undefined}
                     chapterLabel={selectedChapterLabel}
                   />

@@ -103,7 +103,7 @@ export default function AdminPage() {
           </button>
           <Link
             href="/"
-            className="flex items-center gap-2 px-4 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-lg transition text-sm font-semibold"
+            className="flex items-center gap-2 px-4 py-2 bg-white text-indigo-700 hover:bg-indigo-50 rounded-lg transition text-sm font-semibold"
           >
             <ArrowLeft className="w-4 h-4" />
             返回主页

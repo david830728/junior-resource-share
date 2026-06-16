@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Subject, Grade, TextbookChapter, Difficulty } from '@/types';
+import { Subject, Grade, TextbookChapter, TextbookSubsection, Difficulty } from '@/types';
 import { Upload, X, LogIn } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '@/contexts/AuthContext';
@@ -44,11 +44,12 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
   const [chapters, setChapters] = useState<TextbookChapter[]>([]);
   const [chapterSelectValue, setChapterSelectValue] = useState(''); // 'ch-{num}' | 'sp-{id}' | ''
   const [selectedSectionId, setSelectedSectionId] = useState<number | null>(null);
-  const [selectedLessonNum, setSelectedLessonNum] = useState<number | ''>('');
   const [selectedChapterId, setSelectedChapterId] = useState<number | null>(null);
   const [autoDetected, setAutoDetected] = useState('');
+  // Subsection (4th level)
+  const [subsections, setSubsections] = useState<TextbookSubsection[]>([]);
+  const [selectedSubsectionId, setSelectedSubsectionId] = useState<number | null>(null);
 
-  // Fetch chapters when grade selected and subject is 科学（学段已隐含学期）
   useEffect(() => {
     if (subject && grade) {
       const semester = GRADE_TO_SEMESTER[grade as Grade];
@@ -56,13 +57,18 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
         axios.get(`/api/chapters?subject=${encodeURIComponent(subject)}&semester=${encodeURIComponent(semester)}`)
           .then(r => { if (r.data.success) setChapters(r.data.data); else setChapters([]); })
           .catch(() => setChapters([]));
-      } else {
-        setChapters([]);
-      }
-    } else {
-      setChapters([]);
-    }
+      } else { setChapters([]); }
+    } else { setChapters([]); }
   }, [subject, grade]);
+
+  useEffect(() => {
+    if (selectedSectionId) {
+      axios.get(`/api/subsections?chapterId=${selectedSectionId}`)
+        .then(r => { if (r.data.success) setSubsections(r.data.data); else setSubsections([]); })
+        .catch(() => setSubsections([]));
+    } else { setSubsections([]); }
+    setSelectedSubsectionId(null);
+  }, [selectedSectionId]);
 
   const chapterGroups = chapters.filter(c => !c.isSpecial).reduce<Record<number, TextbookChapter[]>>((acc, c) => {
     const k = c.chapterNum!;
@@ -76,15 +82,14 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
   const currentChapterNum = chapterSelectValue.startsWith('ch-') ? Number(chapterSelectValue.slice(3)) : null;
   const sectionsForChapter = currentChapterNum !== null ? (chapterGroups[currentChapterNum] || []) : [];
 
-  // Parse filename for chapter code e.g. "1.2" or "1.2.3"
   const parseChapterFromFilename = (name: string, allChapters: TextbookChapter[]) => {
     const match = name.match(/^(\d+)\.(\d+)(?:\.(\d+))?/);
     if (!match) return null;
     const chNum = Number(match[1]);
     const secNum = Number(match[2]);
-    const lessonNum = match[3] ? Number(match[3]) : null;
+    const subsectionCode = match[3] ?? null;
     const section = allChapters.find(c => c.chapterNum === chNum && c.sectionNum === secNum);
-    return section ? { section, lessonNum } : null;
+    return section ? { section, subsectionCode } : null;
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -95,18 +100,32 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
     setError('');
     if (!title) setTitle(f.name.replace(/\.[^.]+$/, ''));
 
-    // Auto-detect chapter from filename if chapter data exists
     if (chapters.length > 0) {
       const result = parseChapterFromFilename(f.name, chapters);
       if (result) {
-        const { section, lessonNum } = result;
+        const { section, subsectionCode } = result;
         setChapterSelectValue(`ch-${section.chapterNum}`);
         setSelectedSectionId(section.id);
         setSelectedChapterId(section.id);
-        if (lessonNum) setSelectedLessonNum(lessonNum);
-        let msg = `已自动识别：${section.semester} · 第${section.chapterNum}章 ${section.chapterTitle} · 第${section.sectionNum}节 ${section.sectionTitle}`;
-        if (lessonNum) msg += ` · 第${lessonNum}课时`;
-        setAutoDetected(msg);
+        let detectedMsg = `已自动识别：${section.semester} · 第${section.chapterNum}章 ${section.chapterTitle} · 第${section.sectionNum}节 ${section.sectionTitle}`;
+        if (subsectionCode) {
+          // Try to match subsection code after section is loaded
+          axios.get(`/api/subsections?chapterId=${section.id}`).then(r => {
+            if (r.data.success) {
+              const subs: TextbookSubsection[] = r.data.data;
+              setSubsections(subs);
+              const matched = subs.find(s => s.code === subsectionCode);
+              if (matched) {
+                setSelectedSubsectionId(matched.id);
+                setAutoDetected(detectedMsg + ` · ${matched.title}`);
+              } else {
+                setAutoDetected(detectedMsg);
+              }
+            }
+          }).catch(() => {});
+        } else {
+          setAutoDetected(detectedMsg);
+        }
       }
     }
   };
@@ -130,13 +149,14 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
       fd.append('description', description);
       fd.append('difficulty', difficulty);
       if (selectedChapterId) fd.append('chapterId', String(selectedChapterId));
+      if (selectedSubsectionId) fd.append('subsectionId', String(selectedSubsectionId));
 
       const res = await axios.post('/api/resources/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       if (res.data.success) {
         setSuccess('上传成功！');
         setFile(null); setTitle(''); setSubject(''); setGrade(''); setDescription('');
         setDifficulty('基础'); setSelectedChapterId(null);
-        setChapterSelectValue(''); setSelectedSectionId(null); setSelectedLessonNum(''); setAutoDetected('');
+        setChapterSelectValue(''); setSelectedSectionId(null); setSubsections([]); setSelectedSubsectionId(null); setAutoDetected('');
         if (standalone) {
           setTimeout(() => { onSuccess?.(); router.push('/'); }, 1500);
         } else {
@@ -168,7 +188,7 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">学科 *</label>
-          <select value={subject} onChange={e => { setSubject(e.target.value as Subject); setSelectedChapterId(null); setChapterSelectValue(''); setSelectedSectionId(null); setSelectedLessonNum(''); setAutoDetected(''); }}
+          <select value={subject} onChange={e => { setSubject(e.target.value as Subject); setSelectedChapterId(null); setChapterSelectValue(''); setSelectedSectionId(null); setSubsections([]); setSelectedSubsectionId(null); setAutoDetected(''); }}
             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
             <option value="">选择学科</option>
             {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
@@ -176,7 +196,7 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
         </div>
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">学段 *</label>
-          <select value={grade} onChange={e => { setGrade(e.target.value as Grade); setChapterSelectValue(''); setSelectedSectionId(null); setSelectedLessonNum(''); setSelectedChapterId(null); }}
+          <select value={grade} onChange={e => { setGrade(e.target.value as Grade); setChapterSelectValue(''); setSelectedSectionId(null); setSubsections([]); setSelectedSubsectionId(null); setSelectedChapterId(null); }}
             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
             <option value="">选择学段</option>
             {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
@@ -200,7 +220,7 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
               const val = e.target.value;
               setChapterSelectValue(val);
               setSelectedSectionId(null);
-              setSelectedLessonNum('');
+              setSubsections([]); setSelectedSubsectionId(null);
               setSelectedChapterId(val.startsWith('sp-') ? Number(val.slice(3)) : null);
             }}
             className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50 disabled:text-gray-300">
@@ -221,7 +241,6 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
               const id = e.target.value ? Number(e.target.value) : null;
               setSelectedSectionId(id);
               setSelectedChapterId(id);
-              setSelectedLessonNum('');
             }}
             className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50 disabled:text-gray-300">
             <option value="">选节</option>
@@ -230,17 +249,19 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
             ))}
           </select>
 
-          {/* 选课时（选节后可用，特殊条目时禁用） */}
-          <select
-            value={selectedLessonNum}
-            disabled={!selectedSectionId || isSpecialSelected}
-            onChange={e => setSelectedLessonNum(e.target.value ? Number(e.target.value) : '')}
-            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50 disabled:text-gray-300">
-            <option value="">选课时</option>
-            {[1,2,3,4,5,6,7,8].map(n => (
-              <option key={n} value={n}>第{n}课时</option>
-            ))}
-          </select>
+          {/* 选细目（有细目数据时显示） */}
+          {subsections.length > 0 && (
+            <select
+              value={selectedSubsectionId || ''}
+              disabled={!selectedSectionId || isSpecialSelected}
+              onChange={e => setSelectedSubsectionId(e.target.value ? Number(e.target.value) : null)}
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50 disabled:text-gray-300">
+              <option value="">选细目</option>
+              {subsections.map(s => (
+                <option key={s.id} value={s.id}>{s.code ? `${s.code} ` : ''}{s.title}</option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 

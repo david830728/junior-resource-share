@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
     const grade = formData.get('grade') as string;
     const description = formData.get('description') as string;
     const chapterId = formData.get('chapterId') ? Number(formData.get('chapterId')) : null;
+    const subsectionId = formData.get('subsectionId') ? Number(formData.get('subsectionId')) : null;
     const difficulty = (formData.get('difficulty') as string) || '基础';
     const uploader = currentUser.displayName;
 
@@ -65,8 +66,8 @@ export async function POST(request: NextRequest) {
       `INSERT INTO resources (
         title, description, subject, grade, uploader, user_id,
         file_name, file_type, file_size, download_count, uploaded_at,
-        chapter_id, difficulty, pdf_path
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        chapter_id, subsection_id, difficulty, pdf_path
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         title,
         description || '',
@@ -80,6 +81,7 @@ export async function POST(request: NextRequest) {
         0,
         mysqlDateTime,
         chapterId,
+        subsectionId,
         difficulty,
         pdfRelPath,
       ]

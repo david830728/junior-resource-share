@@ -38,6 +38,7 @@ export interface Resource {
   uploadedAt: string;
   downloadCount: number;
   chapterId?: number;
+  subsectionId?: number | null;
   difficulty?: Difficulty;
   pdfPath?: string;
   averageRating?: number;
@@ -56,6 +57,15 @@ export interface TextbookChapter {
   code: string | null;
   sortOrder: number;
   isSpecial: boolean;
+}
+
+// 细目接口
+export interface TextbookSubsection {
+  id: number;
+  chapterId: number;
+  title: string;
+  code: string | null;
+  sortOrder: number;
 }
 
 // 收藏条目接口

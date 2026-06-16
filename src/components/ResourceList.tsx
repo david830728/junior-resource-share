@@ -12,13 +12,14 @@ interface ResourceListProps {
   searchKeyword: string;
   uploaderFilter: string;
   chapterId?: number;
+  subsectionId?: number;
   difficulty?: string;
   chapterLabel?: string;
 }
 
 export default function ResourceList({
   selectedSubject, selectedGrade, searchKeyword, uploaderFilter,
-  chapterId, difficulty, chapterLabel,
+  chapterId, subsectionId, difficulty, chapterLabel,
 }: ResourceListProps) {
   const [resources, setResources] = useState<Resource[]>([]);
   const [filteredResources, setFilteredResources] = useState<Resource[]>([]);
@@ -32,7 +33,7 @@ export default function ResourceList({
     }).catch(() => {});
   }, []);
 
-  useEffect(() => { fetchResources(); }, [uploaderFilter, chapterId, difficulty]);
+  useEffect(() => { fetchResources(); }, [uploaderFilter, chapterId, subsectionId, difficulty]);
 
   const fetchResources = async () => {
     try {
@@ -40,6 +41,7 @@ export default function ResourceList({
       const params = new URLSearchParams();
       if (uploaderFilter) params.set('uploader', uploaderFilter);
       if (chapterId) params.set('chapterId', String(chapterId));
+      if (subsectionId) params.set('subsectionId', String(subsectionId));
       if (difficulty) params.set('difficulty', difficulty);
       const q = params.toString();
       const response = await axios.get(`/api/resources${q ? '?' + q : ''}`);
