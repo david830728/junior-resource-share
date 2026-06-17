@@ -88,7 +88,7 @@ export default function Home() {
     setSelectedSubsectionId(null);
     const label = chapter.isSpecial
       ? `${chapter.semester} · ${chapter.sectionTitle}`
-      : `${chapter.semester} · 第${chapter.chapterNum}章 · 第${chapter.sectionNum}节 ${chapter.sectionTitle}`;
+      : `${chapter.semester} · ${chapter.chapterNum === 0 ? '' : `第${chapter.chapterNum}章 · `}${chapter.sectionNum != null ? `第${chapter.sectionNum}节 ` : ''}${chapter.sectionTitle}`;
     setSelectedChapterLabel(label);
     setSelectedDifficulty('');
   };
@@ -96,7 +96,7 @@ export default function Home() {
   const selectSubsection = (sub: TextbookSubsection, sec: TextbookChapter) => {
     setSelectedSubsectionId(sub.id);
     setSelectedChapterId(null);
-    const label = `${sec.semester} · 第${sec.chapterNum}章 · 第${sec.sectionNum}节 · ${sub.title}`;
+    const label = `${sec.semester} · ${sec.chapterNum === 0 ? '' : `第${sec.chapterNum}章 · `}${sec.sectionNum != null ? `第${sec.sectionNum}节 · ` : ''}${sub.title}`;
     setSelectedChapterLabel(label);
     setSelectedDifficulty('');
   };
@@ -226,7 +226,7 @@ export default function Home() {
                       <button onClick={() => toggleChapter(chNum)}
                         className="w-full flex items-center gap-1 px-2 py-1.5 rounded hover:bg-gray-50 text-left font-semibold text-gray-700">
                         {expanded ? <ChevronDown className="w-3 h-3 flex-shrink-0" /> : <ChevronRight className="w-3 h-3 flex-shrink-0" />}
-                        <span className="truncate text-xs">第{chNum}章 {title}</span>
+                        <span className="truncate text-xs">{chNum === 0 ? title : `第${chNum}章 ${title}`}</span>
                       </button>
                       {expanded && sections.map(sec => {
                         const secExpanded = expandedSections.has(sec.id);
@@ -241,7 +241,7 @@ export default function Home() {
                                 className={`flex-1 text-left pl-1 pr-2 py-1 text-xs rounded truncate transition ${
                                   selectedChapterId === sec.id && !selectedSubsectionId ? 'text-[#4F6EF7] bg-blue-50 font-semibold' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
                                 }`}>
-                                {sec.sectionNum}. {sec.sectionTitle}
+                                {sec.sectionNum != null ? `${sec.sectionNum}. ` : ''}{sec.sectionTitle}
                               </button>
                             </div>
                             {secExpanded && subs.map(sub => (

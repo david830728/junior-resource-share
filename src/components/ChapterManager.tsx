@@ -425,7 +425,7 @@ export default function ChapterManager() {
                       </>
                     ) : (
                       <>
-                        <span className="flex-1 text-sm font-semibold text-gray-700">第{chNum}章 {chTitle}</span>
+                        <span className="flex-1 text-sm font-semibold text-gray-700">{chNum === 0 ? chTitle : `第${chNum}章 ${chTitle}`}</span>
                         <button onClick={() => startChapterTitleEdit(chNum, chTitle)} className={btnClass} title="编辑章标题">
                           <Pencil className="w-3.5 h-3.5" />
                         </button>

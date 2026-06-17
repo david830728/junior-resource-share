@@ -107,7 +107,7 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
         setChapterSelectValue(`ch-${section.chapterNum}`);
         setSelectedSectionId(section.id);
         setSelectedChapterId(section.id);
-        let detectedMsg = `已自动识别：${section.semester} · 第${section.chapterNum}章 ${section.chapterTitle} · 第${section.sectionNum}节 ${section.sectionTitle}`;
+        let detectedMsg = `已自动识别：${section.semester} · ${section.chapterNum === 0 ? '' : `第${section.chapterNum}章 ${section.chapterTitle} · `}第${section.sectionNum}节 ${section.sectionTitle}`;
         if (subsectionCode) {
           // Try to match subsection code after section is loaded
           axios.get(`/api/subsections?chapterId=${section.id}`).then(r => {
@@ -226,7 +226,7 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
             className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50 disabled:text-gray-300">
             <option value="">选章</option>
             {Object.keys(chapterGroups).sort((a, b) => Number(a) - Number(b)).map(num => (
-              <option key={`ch-${num}`} value={`ch-${num}`}>第{num}章 {chapterGroups[Number(num)][0]?.chapterTitle}</option>
+              <option key={`ch-${num}`} value={`ch-${num}`}>{Number(num) === 0 ? chapterGroups[0][0]?.chapterTitle : `第${num}章 ${chapterGroups[Number(num)][0]?.chapterTitle}`}</option>
             ))}
             {specialItems.map(sp => (
               <option key={`sp-${sp.id}`} value={`sp-${sp.id}`}>{sp.sectionTitle}</option>
@@ -245,7 +245,7 @@ export default function UploadForm({ onSuccess, inline = false, standalone = fal
             className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50 disabled:text-gray-300">
             <option value="">选节</option>
             {sectionsForChapter.map(s => (
-              <option key={s.id} value={s.id}>第{s.sectionNum}节 {s.sectionTitle}</option>
+              <option key={s.id} value={s.id}>{s.sectionNum != null ? `第${s.sectionNum}节 ` : ''}{s.sectionTitle}</option>
             ))}
           </select>
 
