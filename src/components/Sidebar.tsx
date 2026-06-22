@@ -1,8 +1,9 @@
 'use client';
 
 import { Subject, Grade } from '@/types';
-import { Menu, X, LogIn, LogOut, ShieldCheck, User, Search, FolderHeart } from 'lucide-react';
+import { Menu, X, LogIn, LogOut, ShieldCheck, User, Search, FolderHeart, KeyRound } from 'lucide-react';
 import { useState } from 'react';
+import axios from 'axios';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
@@ -34,6 +35,36 @@ export default function Sidebar({
   const [isOpen, setIsOpen] = useState(false);
   const { user, logout } = useAuth();
   const router = useRouter();
+
+  const [showPwModal, setShowPwModal] = useState(false);
+  const [curPw, setCurPw] = useState('');
+  const [newPw, setNewPw] = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
+  const [pwError, setPwError] = useState('');
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwSuccess, setPwSuccess] = useState('');
+
+  const openPwModal = () => {
+    setCurPw(''); setNewPw(''); setConfirmPw('');
+    setPwError(''); setPwSuccess('');
+    setShowPwModal(true);
+  };
+
+  const submitPwChange = async () => {
+    if (!curPw) { setPwError('请输入当前密码'); return; }
+    if (newPw.length < 6) { setPwError('新密码至少6位'); return; }
+    if (newPw !== confirmPw) { setPwError('两次密码不一致'); return; }
+    setPwSaving(true); setPwError('');
+    try {
+      await axios.put('/api/users/change-password', { currentPassword: curPw, newPassword: newPw });
+      setPwSuccess('密码修改成功！');
+      setTimeout(() => setShowPwModal(false), 1200);
+    } catch (err: any) {
+      setPwError(err.response?.data?.message || '修改失败');
+    } finally {
+      setPwSaving(false);
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -76,13 +107,17 @@ export default function Sidebar({
                 <p className="text-xs text-gray-400">{user.role === 'admin' ? '管理员' : '教师'}</p>
               </div>
             </div>
-            <div className="flex gap-1.5">
+            <div className="flex gap-1.5 flex-wrap">
               {user.role === 'admin' && (
                 <Link href="/admin"
                   className="flex-1 flex items-center justify-center gap-1 px-2 py-1 border border-purple-300 text-purple-600 text-xs font-semibold rounded hover:bg-purple-50 transition">
                   <ShieldCheck className="w-3 h-3" />管理
                 </Link>
               )}
+              <button onClick={openPwModal}
+                className="flex-1 flex items-center justify-center gap-1 px-2 py-1 border border-gray-300 text-gray-500 text-xs font-semibold rounded hover:bg-gray-50 transition">
+                <KeyRound className="w-3 h-3" />改密码
+              </button>
               <button onClick={handleLogout}
                 className="flex-1 flex items-center justify-center gap-1 px-2 py-1 border border-gray-300 text-gray-500 text-xs font-semibold rounded hover:bg-gray-50 transition">
                 <LogOut className="w-3 h-3" />退出
@@ -151,6 +186,54 @@ export default function Sidebar({
 
   return (
     <>
+      {/* 修改密码弹窗 */}
+      {showPwModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-bold text-gray-800">修改密码</h2>
+              <button onClick={() => setShowPwModal(false)} className="p-1 text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">当前密码</label>
+                <input type="password" value={curPw}
+                  onChange={e => { setCurPw(e.target.value); setPwError(''); }}
+                  placeholder="输入当前密码"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">新密码</label>
+                <input type="password" value={newPw}
+                  onChange={e => { setNewPw(e.target.value); setPwError(''); }}
+                  placeholder="至少6位"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">确认新密码</label>
+                <input type="password" value={confirmPw}
+                  onChange={e => { setConfirmPw(e.target.value); setPwError(''); }}
+                  placeholder="再次输入"
+                  onKeyDown={e => e.key === 'Enter' && submitPwChange()}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+              </div>
+              {pwError && <p className="text-xs text-red-500">{pwError}</p>}
+              {pwSuccess && <p className="text-xs text-green-600">{pwSuccess}</p>}
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setShowPwModal(false)}
+                className="flex-1 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">
+                取消
+              </button>
+              <button onClick={submitPwChange} disabled={pwSaving}
+                className="flex-1 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition disabled:opacity-50">
+                {pwSaving ? '保存中…' : '确认修改'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <button onClick={() => setIsOpen(true)}
         className="fixed top-2 left-2 z-30 md:hidden bg-white border border-gray-200 shadow text-gray-600 px-3 py-2 rounded-lg">
         <Menu className="w-4 h-4" />

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import axios from 'axios';
-import { Users, CheckCircle, XCircle, Trash2, ShieldCheck, ArrowLeft, RefreshCw, BookOpen } from 'lucide-react';
+import { Users, CheckCircle, XCircle, Trash2, ShieldCheck, ArrowLeft, RefreshCw, BookOpen, KeyRound, X } from 'lucide-react';
 import Link from 'next/link';
 import ChapterManager from '@/components/ChapterManager';
 
@@ -34,6 +34,11 @@ export default function AdminPage() {
   const [fetching, setFetching] = useState(true);
   const [msg, setMsg] = useState('');
   const [activeTab, setActiveTab] = useState<'pending' | 'all' | 'chapters'>('pending');
+  const [resetTarget, setResetTarget] = useState<UserRecord | null>(null);
+  const [newPw, setNewPw] = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
+  const [pwError, setPwError] = useState('');
+  const [pwSaving, setPwSaving] = useState(false);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'admin')) {
@@ -68,6 +73,29 @@ export default function AdminPage() {
     }
   };
 
+  const openReset = (u: UserRecord) => {
+    setResetTarget(u);
+    setNewPw('');
+    setConfirmPw('');
+    setPwError('');
+  };
+
+  const submitReset = async () => {
+    if (newPw.length < 6) { setPwError('密码至少6位'); return; }
+    if (newPw !== confirmPw) { setPwError('两次密码不一致'); return; }
+    setPwSaving(true);
+    try {
+      await axios.put(`/api/admin/users/${resetTarget!.id}/reset-password`, { newPassword: newPw });
+      setResetTarget(null);
+      setMsg(`已成功重置 ${resetTarget!.displayName} 的密码`);
+      setTimeout(() => setMsg(''), 3000);
+    } catch (err: any) {
+      setPwError(err.response?.data?.message || '重置失败');
+    } finally {
+      setPwSaving(false);
+    }
+  };
+
   const deleteUser = async (id: number, username: string) => {
     if (!confirm(`确定要删除账号"${username}"吗？此操作不可撤销。`)) return;
     try {
@@ -82,11 +110,61 @@ export default function AdminPage() {
 
   if (loading || !user) return null;
 
+  const ResetModal = resetTarget && (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-gray-800">重置密码</h2>
+          <button onClick={() => setResetTarget(null)} className="p-1 text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+        </div>
+        <p className="text-sm text-gray-500 mb-4">
+          用户：<span className="font-semibold text-gray-700">{resetTarget.displayName}</span>
+          <span className="ml-2 text-gray-400">@{resetTarget.username}</span>
+        </p>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">新密码</label>
+            <input
+              type="password"
+              value={newPw}
+              onChange={e => { setNewPw(e.target.value); setPwError(''); }}
+              placeholder="至少 6 位"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">确认新密码</label>
+            <input
+              type="password"
+              value={confirmPw}
+              onChange={e => { setConfirmPw(e.target.value); setPwError(''); }}
+              placeholder="再次输入"
+              onKeyDown={e => e.key === 'Enter' && submitReset()}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+            />
+          </div>
+          {pwError && <p className="text-xs text-red-500">{pwError}</p>}
+        </div>
+        <div className="flex gap-3 mt-5">
+          <button onClick={() => setResetTarget(null)}
+            className="flex-1 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">
+            取消
+          </button>
+          <button onClick={submitReset} disabled={pwSaving}
+            className="flex-1 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition disabled:opacity-50">
+            {pwSaving ? '保存中…' : '确认重置'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   const pending = users.filter(u => u.role === 'pending');
   const displayed = activeTab === 'pending' ? pending : users;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      {ResetModal}
       {/* 顶部导航 */}
       <div className="bg-gradient-to-r from-blue-700 to-indigo-800 text-white px-6 py-4 flex items-center justify-between shadow-lg">
         <div className="flex items-center gap-3">
@@ -209,6 +287,15 @@ export default function AdminPage() {
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${ROLE_COLORS[u.role]}`}>
                       {ROLE_LABELS[u.role]}
                     </span>
+
+                    <button
+                      onClick={() => openReset(u)}
+                      className="flex items-center gap-1 px-3 py-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 border border-gray-200 text-sm rounded-lg transition"
+                      title="重置密码"
+                    >
+                      <KeyRound className="w-3.5 h-3.5" />
+                      重置密码
+                    </button>
 
                     {u.role === 'pending' && (
                       <>
