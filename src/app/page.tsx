@@ -9,7 +9,7 @@ import { TextbookChapter, TextbookSubsection, Resource } from '@/types';
 import axios from 'axios';
 import { ChevronDown, ChevronRight, Flame, Clock } from 'lucide-react';
 
-const SEMESTERS = ['七年级上', '七年级下', '八年级上', '八年级下'];
+const SEMESTERS = ['七年级上', '七年级下', '八年级上', '八年级下', '九年级上', '九年级下'];
 const DIFFICULTIES = ['基础', '提高', '拓展'] as const;
 
 export default function Home() {
@@ -110,7 +110,7 @@ export default function Home() {
   }, {});
   const specialSections = chapters.filter(c => c.isSpecial);
 
-  const showChapterTree = selectedSubject !== '' && chapters.length > 0;
+  const showChapterTree = selectedSubject !== '';
   const clearSelection = () => { setSelectedChapterId(null); setSelectedSubsectionId(null); setSelectedChapterLabel(''); };
 
   return (
@@ -217,6 +217,9 @@ export default function Home() {
               </div>
               {/* 章节列表 */}
               <div className="space-y-1 text-sm">
+                {chapters.length === 0 && (
+                  <p className="text-xs text-gray-400 text-center py-4">暂无章节数据</p>
+                )}
                 {Object.entries(chapterGroups).map(([num, sections]) => {
                   const chNum = Number(num);
                   const title = sections[0]?.chapterTitle || '';
@@ -241,16 +244,26 @@ export default function Home() {
                                 className={`flex-1 text-left pl-1 pr-2 py-1 text-xs rounded truncate transition ${
                                   selectedChapterId === sec.id && !selectedSubsectionId ? 'text-[#4F6EF7] bg-blue-50 font-semibold' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
                                 }`}>
-                                {sec.sectionNum != null ? `${sec.sectionNum}. ` : ''}{sec.sectionTitle}
+                                {sec.code ? `${sec.code} ` : sec.sectionNum != null ? `${sec.sectionNum}. ` : ''}{sec.sectionTitle}
                               </button>
                             </div>
                             {secExpanded && subs.map(sub => (
-                              <button key={sub.id} onClick={() => selectSubsection(sub, sec)}
-                                className={`w-full text-left pl-8 pr-2 py-0.5 text-xs rounded truncate transition ${
-                                  selectedSubsectionId === sub.id ? 'text-[#4F6EF7] bg-blue-50 font-semibold' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-50'
-                                }`}>
-                                {sub.code ? `${sub.code} ` : ''}{sub.title}
-                              </button>
+                              <div key={sub.id}>
+                                <button onClick={() => selectSubsection(sub, sec)}
+                                  className={`w-full text-left pl-8 pr-2 py-0.5 text-xs rounded truncate transition ${
+                                    selectedSubsectionId === sub.id ? 'text-[#4F6EF7] bg-blue-50 font-semibold' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-50'
+                                  }`}>
+                                  {sub.code ? `${sub.code} ` : ''}{sub.title}
+                                </button>
+                                {sub.children && sub.children.length > 0 && sub.children.map(child => (
+                                  <button key={child.id} onClick={() => selectSubsection(child, sec)}
+                                    className={`w-full text-left pl-12 pr-2 py-0.5 text-xs rounded truncate transition ${
+                                      selectedSubsectionId === child.id ? 'text-[#4F6EF7] bg-blue-50 font-semibold' : 'text-gray-300 hover:text-gray-600 hover:bg-gray-50'
+                                    }`}>
+                                    {child.title}
+                                  </button>
+                                ))}
+                              </div>
                             ))}
                           </div>
                         );

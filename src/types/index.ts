@@ -63,9 +63,11 @@ export interface TextbookChapter {
 export interface TextbookSubsection {
   id: number;
   chapterId: number;
+  parentId?: number | null;
   title: string;
   code: string | null;
   sortOrder: number;
+  children?: TextbookSubsection[];
 }
 
 // 收藏条目接口

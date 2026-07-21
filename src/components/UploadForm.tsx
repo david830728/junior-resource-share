@@ -13,6 +13,7 @@ const GRADES: Grade[] = ['七上', '七下', '八上', '八下', '九上', '九�
 const GRADE_TO_SEMESTER: Partial<Record<Grade, string>> = {
   '七上': '七年级上', '七下': '七年级下',
   '八上': '八年级上', '八下': '八年级下',
+  '九上': '九年级上', '九下': '九年级下',
 };
 const DIFFICULTIES: { value: Difficulty; label: string; color: string }[] = [
   { value: '基础', label: '🔵 基础', color: 'border-blue-400 bg-blue-50 text-blue-700' },

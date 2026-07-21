@@ -47,6 +47,11 @@ export async function DELETE(
       [subsectionId]
     ) as any[];
     const affectedResources = Number(countRows[0]?.cnt ?? 0);
+    const [childRows] = await pool.query('SELECT id FROM textbook_subsections WHERE parent_id = ?', [subsectionId]) as any[];
+    for (const child of childRows) {
+      await pool.query('UPDATE resources SET subsection_id = NULL WHERE subsection_id = ?', [child.id]);
+    }
+    await pool.query('DELETE FROM textbook_subsections WHERE parent_id = ?', [subsectionId]);
     await pool.query('UPDATE resources SET subsection_id = NULL WHERE subsection_id = ?', [subsectionId]);
     await pool.query('DELETE FROM textbook_subsections WHERE id = ?', [subsectionId]);
     return NextResponse.json({ success: true, affectedResources });
