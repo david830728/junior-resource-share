@@ -7,6 +7,10 @@
 
 START TRANSACTION;
 
+-- 清理旧数据（幂等）
+DELETE ts FROM textbook_subsections ts JOIN textbook_chapters tc ON ts.chapter_id=tc.id WHERE tc.subject='英语' AND tc.semester IN ('七年级上','七年级下','八年级上','八年级下');
+DELETE FROM textbook_chapters WHERE subject='英语' AND semester IN ('七年级上','七年级下','八年级上','八年级下');
+
 -- ============================================================
 -- 七年级上
 -- ============================================================
